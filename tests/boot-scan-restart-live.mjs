@@ -56,7 +56,7 @@ if (process.argv[2] === 'worker') {
     assert.equal(ctx.agents.list().length, 0, 'no conversation was opened');
     ctx.provide('agentDefaultModel', { currentSelection: () => ({ provider: 'test', model: 'wrong-default' }) });
     await ctx.plugin(await import(pathToFileURL(join(root, 'lib/index.js')).href), {
-      scanOnBoot: true, freshMs: 15000, graceMs: 0, cooldownMs: 0, verbose: false,
+      scanOnBoot: true, freshMs: 15000, graceMs: 0, cooldownMs: 0, verbose: false, resumeCompletedTurns: false,
       continueTextInterrupted: 'Recover the interrupted task.',
     });
     for (let i = 0; i < 100 && !ctx.agents.get('restart-test')?.session.snapshotEvents().some(event => event.type === 'turn/end' && event.data.reason.kind === 'completed'); i++) await sleep(100);
