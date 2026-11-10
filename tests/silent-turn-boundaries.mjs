@@ -16,7 +16,7 @@ const message = (turn, content) => ({
 const reasoning = (turn) => message(turn, [{ type: 'reasoning', text: 'Thinking' }]);
 
 try {
-  const h = host();
+  const h = host({ resumeCompletedTurns: false });
   const noop = h.agent('noop');
   h.emit(noop, turnStart(1));
   h.emit(noop, turnEnd(1, 'completed'));
@@ -46,7 +46,7 @@ try {
   h.emit(streamed, turnEnd(1, 'completed'));
   await flush();
   assert.equal(streamed.followups.length, 0, 'streamed visible output survives a reasoning-only final message');
-  const toggled = host();
+  const toggled = host({ resumeCompletedTurns: false });
   const cancelled = toggled.agent('cancelled');
   toggled.emit(cancelled, turnStart(1));
   toggled.emit(cancelled, reasoning(1));
@@ -54,7 +54,7 @@ try {
   toggled.config.resumeSilentTurns = false;
   await flush();
   assert.equal(cancelled.followups.length, 0, 'disabling silent recovery during grace cancels the send');
-  const capped = host({ maxConsecutive: 1 });
+  const capped = host({ maxConsecutive: 1, resumeCompletedTurns: false });
   const repeats = capped.agent('repeats');
   const silentTurn = (turn) => {
     capped.emit(repeats, turnStart(turn));

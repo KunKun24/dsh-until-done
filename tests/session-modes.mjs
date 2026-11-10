@@ -42,15 +42,15 @@ try {
   await setMode(h, 'C', 'off');
   for (const agent of [a, b, c, d]) end(h, agent, 1, 'completed');
   await flush();
-  assert.deepEqual([a, b, c, d].map(agent => agent.followups.length), [1, 0, 0, 0]);
+  assert.deepEqual([a, b, c, d].map(agent => agent.followups.length), [1, 0, 0, 1]);
   for (const agent of [a, b, c, d]) end(h, agent, 2, 'error');
   await flush();
-  assert.deepEqual([a, b, c, d].map(agent => agent.followups.length), [2, 1, 0, 1], 'recover and loop retry failures; off does nothing');
+  assert.deepEqual([a, b, c, d].map(agent => agent.followups.length), [2, 1, 0, 2], 'recover and loop retry failures; off does nothing');
   h.config.resumeCompletedTurns = true;
   h.settingsChanged();
   for (const agent of [a, b, c, d]) end(h, agent, 3, 'completed');
   await flush();
-  assert.deepEqual([a, b, c, d].map(agent => agent.followups.length), [3, 1, 0, 2], 'only inherited modes follow the new default');
+  assert.deepEqual([a, b, c, d].map(agent => agent.followups.length), [3, 1, 0, 3], 'only inherited modes follow the new default');
   await setMode(h, 'B', 'default');
   end(h, b, 4, 'completed');
   await flush();
@@ -59,7 +59,7 @@ try {
   h.settingsChanged();
   for (const agent of [a, b, c, d]) end(h, agent, 5, 'no-visible-output');
   await flush();
-  assert.deepEqual([a, b, c, d].map(agent => agent.followups.length), [3, 2, 0, 2], 'global pause takes precedence');
+  assert.deepEqual([a, b, c, d].map(agent => agent.followups.length), [3, 2, 0, 3], 'global pause takes precedence');
   await h.postAction({ action: 'resume', sessionId: 'C' });
   assert.equal(c.followups.length, 1, 'manual Resume now remains an explicit one-off action');
   assert.equal(h.config.sessionModes.C, 'off');

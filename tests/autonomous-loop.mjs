@@ -36,14 +36,15 @@ const reasoning = (turn) => message(turn, [{ type: 'reasoning', text: 'Thinking'
 const followupText = (agent, index) => agent.followups[index].content[0].text;
 
 try {
-  // 27a: off by default — a normal completed turn does not smart-continue.
-  const plain = host();
+  // 27a: explicitly off — a normal completed turn does not smart-continue.
+  // (Smart Continue turns this on by default; recovery-only mode is opt-out.)
+  const plain = host({ resumeCompletedTurns: false });
   const off = plain.agent('off');
   plain.emit(off, turnStart(1));
   plain.emit(off, text(1));
   plain.emit(off, turnEnd(1, 'completed'));
   await flush();
-  assert.equal(off.followups.length, 0, 'default: completed turns are not resumed');
+  assert.equal(off.followups.length, 0, 'recovery-only: completed turns are not resumed');
 
   // 27b: on — every completed turn hands the thread back, visible or not.
   const loop = host({ resumeCompletedTurns: true });
