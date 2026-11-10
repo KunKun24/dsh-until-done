@@ -1,7 +1,7 @@
 {
   "name": "dsh-until-done",
   "description": "DSH 插件：模型正常结束但任务没做完时自动续跑；用结尾暗号判定真正完成，并细分限流、上游错误与工具失败。",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
