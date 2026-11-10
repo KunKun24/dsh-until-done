@@ -4,7 +4,7 @@ import type { SnapshotStore } from './dsh-store-compat.ts';
 import { sessionMode, type SessionMode, type SessionPolicy } from '../shared/core.ts';
 import { NativeSwitch } from './native-switch.tsx';
 import { ModeMenu, type ModeMenuOption } from './mode-menu.tsx';
-import { AutoContinueIcon } from './smart-continue-icon.tsx';
+import { AutoContinueIcon } from './until-done-icon.tsx';
 import { NativeToast, WarningIcon, hasNativeToast } from './native-toast.tsx';
 
 export interface ComposerToggleState {
@@ -41,7 +41,7 @@ export interface ComposerToggleFace {
   setMode: (mode: SessionMode) => void;
 }
 
-export function AutoContinueComposerToggle(props: PropsLocale<'smart-continue'> & InjectFace<ComposerToggleFace>) {
+export function AutoContinueComposerToggle(props: PropsLocale<'until-done'> & InjectFace<ComposerToggleFace>) {
   const state = props.useAutoContinueComposer((snapshot) => snapshot);
   if (!state.visible || !props.sessionId) return null;
   const failed = state.failed.has(props.sessionId);

@@ -1,4 +1,4 @@
-// Build both halves of the smart-continue plugin.
+// Build both halves of the until-done plugin.
 //
 // Host half (src/index.ts → lib/index.js): a plain ESM node module the dsh
 // host loader imports. No server-side behavior; kept for parity with the

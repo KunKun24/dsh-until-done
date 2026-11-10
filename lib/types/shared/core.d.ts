@@ -5,10 +5,10 @@
  * 以及回显识别。引擎迁入 host 后(0.8.0), 浏览器半侧只 re-export 本模块。
  */
 import type { SessionEvent } from '@deepseek-ai/dsh-session/types';
-export declare const AUTO_CONTINUE_SOURCE_KIND = "plugin:dsh-smart-continue";
+export declare const AUTO_CONTINUE_SOURCE_KIND = "plugin:dsh-until-done";
 declare module '@deepseek-ai/dsh-llm' {
     interface MessageSourceMap {
-        'plugin:dsh-smart-continue': {
+        'plugin:dsh-until-done': {
             kind: typeof AUTO_CONTINUE_SOURCE_KIND;
         };
     }
@@ -56,7 +56,7 @@ export declare const LOCALIZED_TEXT_DEFAULTS: {
         readonly continueTextServer: "Continue. The upstream service returned an error ({code} / HTTP {status}). Retry the last step in smaller pieces, and switch approaches if it keeps failing.";
     };
 };
-/** The `smart-continue` settings section (all fields optional on the wire; the host schema carries defaults). */
+/** The `until-done` settings section (all fields optional on the wire; the host schema carries defaults). */
 export interface AutoContinueSettings {
     /** Active browser/UI locale mirrored by the client. */
     locale?: AutoContinueLocale;
@@ -84,9 +84,9 @@ export interface AutoContinueSettings {
     guardDoneText?: string;
     /** Grace period after an interruption before auto-sending (ms). */
     graceMs?: number;
-    /** Minimum interval between two smart-continues per session (ms). */
+    /** Minimum interval between two until-dones per session (ms). */
     cooldownMs?: number;
-    /** Max consecutive smart-continues per session before stopping. */
+    /** Max consecutive until-dones per session before stopping. */
     maxConsecutive?: number;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot?: boolean;
@@ -94,9 +94,9 @@ export interface AutoContinueSettings {
     scanLimit?: number;
     /** Interruption freshness and duration of startup polling (ms). */
     freshMs?: number;
-    /** Log `[smart-continue]` lines to the browser console. */
+    /** Log `[until-done]` lines to the browser console. */
     verbose?: boolean;
-    /** Classify failures: smart-continue transient errors only; permanent ones (auth/balance/model) are skipped and notified. */
+    /** Classify failures: until-done transient errors only; permanent ones (auth/balance/model) are skipped and notified. */
     classify?: boolean;
     /** Provider-specific message/code/status fragments that explicitly count as retryable, one literal per line. */
     retryableErrorPatterns?: string;
@@ -104,9 +104,9 @@ export interface AutoContinueSettings {
     backoffFactor?: number;
     /** Cap on the effective backoff interval (ms). */
     backoffMaxMs?: number;
-    /** Show browser notifications for smart-continue events. */
+    /** Show browser notifications for until-done events. */
     notify?: boolean;
-    /** Globally pause smart-continue: no live or scan send, queued pending sends cancelled. */
+    /** Globally pause until-done: no live or scan send, queued pending sends cancelled. */
     paused?: boolean;
     /** Persistent per-session overrides; default explicitly inherits the profile default. */
     sessionModes?: Record<string, SessionMode>;

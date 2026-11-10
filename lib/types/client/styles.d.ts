@@ -1,5 +1,5 @@
 /**
- * Styles for the smart-continue settings card, injected at factory
+ * Styles for the until-done settings card, injected at factory
  * materialization so the client module system's style bookkeeping (HMR) owns
  * them. Uses the DSH design tokens (`--dsw-alias-*`) so the card follows the
  * active theme.

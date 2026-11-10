@@ -9,7 +9,7 @@
  * injected by the entry (`apply`'s config argument, merged with schema
  * defaults by `resolveConfig`).
  *
- * All behavior is driven by the `smart-continue` entry config; every knob below
+ * All behavior is driven by the `until-done` entry config; every knob below
  * is user-configurable there.
  */
 import type { Context } from '@deepseek-ai/cordis';
@@ -139,7 +139,7 @@ export declare class AutoContinueRunner {
     private notify;
     /** 恢复结果记账: 自动发送后窗口内的回合结束, 判定恢复成功或失败。 */
     /**
-     * 智能续跑判定: 正常结束(completed)的回合要不要继续。
+     * 做完为止判定: 正常结束(completed)的回合要不要继续。
      * - 回复以完成暗号收尾 → 任务真完成, 停;
      * - 没有暗号时, 只有本回合动过手(工具调用)或还有 active goal 才继续,
      *   避免对普通问答(「你好」「谢谢」)无休止地续跑。

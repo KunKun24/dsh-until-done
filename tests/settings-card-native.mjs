@@ -120,7 +120,7 @@ assert.match(render('general'), /role="switch"[^>]*aria-checked="true"[^>]*aria-
 face.discard();
 assert.doesNotMatch(general, /<select\b/, 'the native path has no OS select');
 assert.doesNotMatch(general, /dshAcField/, 'the native path does not render the legacy field rows');
-assert.match(general, /href="https:\/\/github\.com\/KunKun24\/dsh-smart-continue"/);
+assert.match(general, /href="https:\/\/github\.com\/KunKun24\/dsh-until-done"/);
 assert.match(general, /data-native-save[^>]*>Save</, 'the native form owns the save button');
 assert.ok((general.match(/role="switch"/g) ?? []).length >= 4, 'boolean fields use native switches');
 

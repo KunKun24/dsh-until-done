@@ -320,7 +320,7 @@ async function captureConsoleErrors(run) {
 }
 
 function postAction(host, payload) {
-  const action = host.routes?.find((route) => route.path === '/api/smart-continue-action');
+  const action = host.routes?.find((route) => route.path === '/api/until-done-action');
   if (action === undefined) throw new Error('动作路由未注册');
   return new Promise((resolve) => {
     const handlers = {};
@@ -343,7 +343,7 @@ function postAction(host, payload) {
 }
 
 function readBridgeState(host) {
-  const bridge = host.routes?.find((route) => route.path === '/api/smart-continue-bridge');
+  const bridge = host.routes?.find((route) => route.path === '/api/until-done-bridge');
   if (bridge === undefined) throw new Error('状态桥路由未注册');
   let state;
   let close;
@@ -628,7 +628,7 @@ const stepStart = (turn, step, seq) => ({
   const host = startPlugin({ scanOnBoot: false, usePluginSource: true });
   const agent = host.makeAgent('s1');
   await postAction(host, { action: 'resume', sessionId: 's1' });
-  check('开启后使用插件来源', agent.followups[0]?.source?.kind === 'plugin:dsh-smart-continue');
+  check('开启后使用插件来源', agent.followups[0]?.source?.kind === 'plugin:dsh-until-done');
   host.setConfig({ usePluginSource: false });
   await postAction(host, { action: 'resume', sessionId: 's1' });
   check('关闭后恢复用户来源', agent.followups[1]?.source?.kind === 'user');
@@ -1348,7 +1348,7 @@ for (const usePluginSource of [false, true]) {
   check(
     '使用稳定的专属 hook cause',
     JSON.stringify(agent.cancels[0]?.cause) ===
-      JSON.stringify({ kind: 'hook', reason: 'dsh-smart-continue:loop-guard' }),
+      JSON.stringify({ kind: 'hook', reason: 'dsh-until-done:loop-guard' }),
   );
   check('durable marker 前不计入 looped', readBridgeState(host)?.stats?.looped === 0);
   const loopEnd = turnEnd(1, { kind: 'aborted', reason: agent.cancels[0]?.cause });
@@ -2255,8 +2255,8 @@ for (const usePluginSource of [false, true]) {
   const host = startPlugin({ scanOnBoot: false, notify: true, maxConsecutive: 1 });
   const agent = host.makeAgent('s1');
   await sleep(50);
-  const bridge = host.routes.find((r) => r.path === '/api/smart-continue-bridge');
-  const action = host.routes.find((r) => r.path === '/api/smart-continue-action');
+  const bridge = host.routes.find((r) => r.path === '/api/until-done-bridge');
+  const action = host.routes.find((r) => r.path === '/api/until-done-action');
   check('桥路由已注册', bridge !== undefined && action !== undefined);
   // SSE 客户端收集
   const frames = [];
@@ -2299,7 +2299,7 @@ for (const usePluginSource of [false, true]) {
   const transient = host.makeAgent('transient');
   const permanent = host.makeAgent('permanent');
   await sleep(50);
-  const bridge = host.routes.find((route) => route.path === '/api/smart-continue-bridge');
+  const bridge = host.routes.find((route) => route.path === '/api/until-done-bridge');
   const frames = [];
   bridge.handler(
     { on: () => {} },

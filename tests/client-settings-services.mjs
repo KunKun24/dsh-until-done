@@ -68,7 +68,7 @@ async function scenario(service, slot, { delayed = false } = {}) {
     register(options, component) {
       assert.equal(options.name, slot);
       assert.equal(options.key, slot === 'plugins.bundle.config'
-        ? 'dsh-smart-continue' : 'smart-continue');
+        ? 'dsh-until-done' : 'until-done');
       assert.equal(entries.size, 0, 'one settings card per active plugin');
       entries.set(options.key, { options, component });
       return () => entries.delete(options.key);
@@ -115,9 +115,9 @@ async function scenario(service, slot, { delayed = false } = {}) {
   };
   const provideSettings = () => ctx.plugin((provider) => {
     provider.provide(service, service === 'configForms' ? {
-      get(namespace) { assert.equal(namespace, 'smart-continue'); return scope; },
+      get(namespace) { assert.equal(namespace, 'until-done'); return scope; },
     } : {
-      bind({ namespace }) { assert.equal(namespace, 'smart-continue'); return scope; },
+      bind({ namespace }) { assert.equal(namespace, 'until-done'); return scope; },
     });
   });
 
@@ -145,7 +145,7 @@ async function scenario(service, slot, { delayed = false } = {}) {
       ...face, view: 'page', t: (key) => dictionaries.en[key],
       useAutoContinueSettingsCard: (select) => select(state()),
     }));
-    assert.match(html, /smart-continue/i, 'the registered settings component renders');
+    assert.match(html, /until-done/i, 'the registered settings component renders');
     if (slot === 'plugins.bundle.config') assert.match(html, /^<ul\b/, 'bundle page owns the card list');
 
     face.edit('graceMs', '1234');

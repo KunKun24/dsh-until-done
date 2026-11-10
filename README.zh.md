@@ -1,4 +1,4 @@
-# 智能续跑 (dsh-smart-continue)
+# 做完为止 (dsh-until-done)
 
 DSH 插件。模型把回合正常结束、但任务其实只做了一半时，自动发一条「继续」把它推回工作；只有回复以**完成暗号**收尾，才算真的做完、不再打扰。
 
@@ -10,19 +10,19 @@ DSH 插件。模型把回合正常结束、但任务其实只做了一半时，�
 - **收尾约定注入系统提示词**：从第一轮就告诉模型规则（`order: 900`，`interpolate: false`），而不是等第一次自动续跑才说。文本可自定义，`{keyword}` 会替换成暗号。
 - **失败分类更细**：工具执行失败、429 限流、5xx 上游错误各有专属续跑文案；工具失败会带上工具名和错误摘要，明确要求「先判断原因、能修就修」，而不是把失败当完成。
 - **只续跑真在做事的回合**（可选）：普通问答（没调工具、没有进行中的目标）不自动续，避免「你好」被追着回复十轮。
-- 重命名为 `dsh-smart-continue`，设置命名空间、HTTP 路由、日志前缀、界面文案全部独立，可与原插件并存。
+- 重命名为 `dsh-until-done`，设置命名空间、HTTP 路由、日志前缀、界面文案全部独立，可与原插件并存。
 
 ## 安装
 
 ```bash
 # 从 Release 装（推荐）
-dsh plugin --profile web add https://github.com/KunKun24/dsh-smart-continue/releases/download/v1.0.0/dsh-smart-continue-1.0.0.tgz
+dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.0.0/dsh-until-done-1.0.0.tgz
 
 # 或从本地目录装（改源码时用）
-dsh plugin --profile web add link:/www/wwwroot/dsh-smart-continue
+dsh plugin --profile web add link:/path/to/dsh-until-done
 ```
 
-装完重启 DSH，设置入口在左下角 **更多设置 → 插件 → 智能续跑**。
+装完重启 DSH，设置入口在左下角 **更多设置 → 插件 → 做完为止**。
 
 ## 关键设置
 

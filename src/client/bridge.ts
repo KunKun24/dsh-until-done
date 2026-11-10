@@ -1,9 +1,9 @@
 /**
  * Host status bridge, browser side.
  *
- * Subscribes to the host engine's `/api/smart-continue-bridge` SSE stream:
+ * Subscribes to the host engine's `/api/until-done-bridge` SSE stream:
  * notifications (shown via the browser Notification API, action buttons POST
- * to `/api/smart-continue-action`) and runtime state (today's stats and the
+ * to `/api/until-done-action`) and runtime state (today's stats and the
  * paused-sessions list) consumed by the settings card's live panels.
  */
 
@@ -77,7 +77,7 @@ export function readSessionPolicy(): SessionPolicy | undefined {
 
 export async function setSessionMode(sessionId: string, mode: SessionMode): Promise<void> {
   if (!state.sessionPolicy?.writable) throw new Error('Session settings are unavailable');
-  const response = await fetch('/api/smart-continue-action', {
+  const response = await fetch('/api/until-done-action', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action: 'set-session-mode', sessionId, mode }),
@@ -109,7 +109,7 @@ export function subscribeBridge(listener: () => void): () => void {
 /** 通知按钮动作回传 host(立即续跑 / 暂停该会话 1 小时 / 解除暂停 / 清零统计)。 */
 async function postAction(payload: { action: string; sessionId?: string }): Promise<void> {
   try {
-    await fetch('/api/smart-continue-action', {
+    await fetch('/api/until-done-action', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
@@ -197,7 +197,7 @@ export function startBridge(): () => void {
     while (!stopped) {
       controller = new AbortController();
       try {
-        const response = await fetch('/api/smart-continue-bridge', { signal: controller.signal });
+        const response = await fetch('/api/until-done-bridge', { signal: controller.signal });
         if (!response.ok || response.body === null) throw new Error(`bridge HTTP ${response.status}`);
         const reader = response.body.getReader();
         const decoder = new TextDecoder();

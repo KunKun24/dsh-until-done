@@ -4,7 +4,7 @@ import type { ComposerToggleFace } from './composer-toggle.tsx';
 import { type SettingsScope, type SnapshotStore } from './dsh-store-compat.ts';
 import type { SettingsCardKey } from './locales.ts';
 import { type CardActions, type CardFieldState, type CardShell } from './settings-form.ts';
-/** What the smart-continue card renders. */
+/** What the until-done card renders. */
 export interface AutoContinueSettingsCardState extends CardShell {
     /** Committed global state; a staged edit does not pause the engine yet. */
     enabled: boolean;
@@ -64,7 +64,7 @@ export interface AutoContinueSettingsCardFace extends CardActions {
         autoContinueSettingsCard: SnapshotStore<AutoContinueSettingsCardState>;
     };
 }
-/** Bridges the `smart-continue` scope onto the card's staged form. */
+/** Bridges the `until-done` scope onto the card's staged form. */
 export declare class AutoContinueSettingsCardController {
     private readonly scope;
     private readonly getLocale;
@@ -78,7 +78,7 @@ export declare class AutoContinueSettingsCardController {
     private saveSequence;
     private notificationFeedback;
     /**
-     * @param scope - the bound settings scope for the `smart-continue` namespace.
+     * @param scope - the bound settings scope for the `until-done` namespace.
      */
     constructor(scope: SettingsScope<AutoContinueSettings>, getLocale: () => string);
     private projection;
@@ -94,8 +94,8 @@ export declare class AutoContinueSettingsCardController {
     /** Release this card's subscription to the provider-owned settings form. */
     dispose(): void;
 }
-/** Props the renderer binds for the smart-continue plugin-configuration card. */
-export type AutoContinueSettingsCardProps = PropsLocale<'smart-continue'> & InjectFace<AutoContinueSettingsCardFace>;
+/** Props the renderer binds for the until-done plugin-configuration card. */
+export type AutoContinueSettingsCardProps = PropsLocale<'until-done'> & InjectFace<AutoContinueSettingsCardFace>;
 /** The bundle page supplies no list container, unlike the legacy settings slot. */
 export declare function AutoContinueSettingsPage(props: AutoContinueSettingsCardProps): import("react").JSX.Element;
 /** Native category layout; the plugin manager above already owns the title, version and status. */

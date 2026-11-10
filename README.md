@@ -1,4 +1,4 @@
-# Smart Continue (dsh-smart-continue)
+# Until Done (dsh-until-done)
 
 A DSH plugin. When a turn ends normally but the task is only half done, it sends one more "continue" and pushes the model back to work. A reply counts as truly finished only when it closes with the **completion keyword**.
 
@@ -10,19 +10,19 @@ Forked from [HsiangNianian/dsh-auto-continue](https://github.com/HsiangNianian/d
 - **Rule injected into the system prompt** (order 900, `interpolate: false`) so the model knows the rule from the first turn instead of learning it after the first auto-continue. The text is editable and `{keyword}` is replaced with the keyword.
 - **Finer failure classes**: tool failure, 429 rate limit and 5xx upstream errors each get their own continuation text. A tool failure names the tool and carries its error excerpt, and asks the model to diagnose before retrying instead of treating the failure as completion.
 - **Optional "real work only"** mode: a plain chat turn (no tool call, no active goal) is left alone, so "hi" is not answered ten times.
-- Renamed to `dsh-smart-continue`: settings namespace, HTTP routes, log prefix and UI copy are independent, so it can live beside the upstream plugin.
+- **Independent namespace**: contract namespace, HTTP routes, log prefix and UI copy all belong to `dsh-until-done`, so it can be installed beside the upstream plugin without clashing.
 
 ## Install
 
 ```bash
 # from the release tarball (recommended)
-dsh plugin --profile web add https://github.com/KunKun24/dsh-smart-continue/releases/download/v1.0.0/dsh-smart-continue-1.0.0.tgz
+dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.0.0/dsh-until-done-1.0.0.tgz
 
 # or from a local checkout while developing
-dsh plugin --profile web add link:/www/wwwroot/dsh-smart-continue
+dsh plugin --profile web add link:/path/to/dsh-until-done
 ```
 
-Restart DSH, then open **More settings → Plugins → Smart Continue** in the bottom-left corner.
+Restart DSH, then open **More settings → Plugins → Until Done** in the bottom-left corner.
 
 ## Key settings
 

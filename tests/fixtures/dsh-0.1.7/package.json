@@ -1,5 +1,5 @@
 {
-  "name": "smart-continue-settings-runtime-test",
+  "name": "until-done-settings-runtime-test",
   "private": true,
   "type": "module",
   "dependencies": {

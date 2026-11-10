@@ -73,7 +73,7 @@ if (process.argv[2] === 'worker') {
     process.disconnect();
   }
 } else {
-  const root = mkdtempSync(join(tmpdir(), 'smart-continue-restart-'));
+  const root = mkdtempSync(join(tmpdir(), 'until-done-restart-'));
   const children = [];
   function worker(restart = false) {
     const child = fork(fileURLToPath(import.meta.url), ['worker', root, ...(restart ? ['restart'] : [])], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });

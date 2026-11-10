@@ -1,10 +1,10 @@
 /**
- * Host half of the smart-continue plugin.
+ * Host half of the until-done plugin.
  *
  * - Configuration is this entry's own Loader config: `apply(ctx, config)`
  *   injects it into the engine, where `resolveConfig` merges it with the
  *   schema defaults (the browser half's settings card writes the same values).
- * - Runs the single-instance smart-continue engine: listens to the session
+ * - Runs the single-instance until-done engine: listens to the session
  *   event firehose, sends via `agent.followup`, cancels via `agent.cancel`.
  * - Serves a status bridge the browser half subscribes to: notifications and
  *   runtime state (stats / pauses), plus an action endpoint for notification
@@ -14,8 +14,8 @@ import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { type EntrySettings, type LiveEntrySettings } from './host/settings-migration.ts';
 import { type AutoContinueSettings } from './shared/core.ts';
-/** Settings namespace of the smart-continue plugin (lowercase kebab-case). */
-export declare const AUTO_CONTINUE_NS = "smart-continue";
+/** Settings namespace of the until-done plugin (lowercase kebab-case). */
+export declare const AUTO_CONTINUE_NS = "until-done";
 export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     /** Active browser/UI locale mirrored by the client. */
     locale: z<string, string>;
@@ -43,9 +43,9 @@ export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     guardDoneText: z<string, string>;
     /** Grace period after an interruption before auto-sending (ms). */
     graceMs: z<number, number>;
-    /** Minimum interval between two smart-continues per session (ms). */
+    /** Minimum interval between two until-dones per session (ms). */
     cooldownMs: z<number, number>;
-    /** Max consecutive smart-continues per session before stopping. */
+    /** Max consecutive until-dones per session before stopping. */
     maxConsecutive: z<number, number>;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot: z<boolean, boolean>;
@@ -53,9 +53,9 @@ export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     scanLimit: z<number, number>;
     /** Interruption freshness and duration of startup polling (ms). */
     freshMs: z<number, number>;
-    /** Log `[smart-continue]` lines to the browser console. */
+    /** Log `[until-done]` lines to the browser console. */
     verbose: z<boolean, boolean>;
-    /** Classify failures: smart-continue transient errors only; permanent ones are skipped and notified. */
+    /** Classify failures: until-done transient errors only; permanent ones are skipped and notified. */
     classify: z<boolean, boolean>;
     /** Provider-specific message/code/status fragments that explicitly count as retryable, one literal per line. */
     retryableErrorPatterns: z<string, string>;
@@ -63,9 +63,9 @@ export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     backoffFactor: z<number, number>;
     /** Cap on the effective backoff interval (ms). */
     backoffMaxMs: z<number, number>;
-    /** Show browser notifications for smart-continue events. */
+    /** Show browser notifications for until-done events. */
     notify: z<boolean, boolean>;
-    /** Globally pause smart-continue: no live or scan send. */
+    /** Globally pause until-done: no live or scan send. */
     paused: z<boolean, boolean>;
     /** Persist choices by session, including an explicit return to the profile default. */
     sessionModes: z<import("@deepseek-ai/cosmokit").Dict<"default" | "off" | "recover" | "loop", string>, import("@deepseek-ai/cosmokit").Dict<"default" | "off" | "recover" | "loop", string>>;
@@ -140,9 +140,9 @@ export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     guardDoneText: z<string, string>;
     /** Grace period after an interruption before auto-sending (ms). */
     graceMs: z<number, number>;
-    /** Minimum interval between two smart-continues per session (ms). */
+    /** Minimum interval between two until-dones per session (ms). */
     cooldownMs: z<number, number>;
-    /** Max consecutive smart-continues per session before stopping. */
+    /** Max consecutive until-dones per session before stopping. */
     maxConsecutive: z<number, number>;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot: z<boolean, boolean>;
@@ -150,9 +150,9 @@ export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     scanLimit: z<number, number>;
     /** Interruption freshness and duration of startup polling (ms). */
     freshMs: z<number, number>;
-    /** Log `[smart-continue]` lines to the browser console. */
+    /** Log `[until-done]` lines to the browser console. */
     verbose: z<boolean, boolean>;
-    /** Classify failures: smart-continue transient errors only; permanent ones are skipped and notified. */
+    /** Classify failures: until-done transient errors only; permanent ones are skipped and notified. */
     classify: z<boolean, boolean>;
     /** Provider-specific message/code/status fragments that explicitly count as retryable, one literal per line. */
     retryableErrorPatterns: z<string, string>;
@@ -160,9 +160,9 @@ export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     backoffFactor: z<number, number>;
     /** Cap on the effective backoff interval (ms). */
     backoffMaxMs: z<number, number>;
-    /** Show browser notifications for smart-continue events. */
+    /** Show browser notifications for until-done events. */
     notify: z<boolean, boolean>;
-    /** Globally pause smart-continue: no live or scan send. */
+    /** Globally pause until-done: no live or scan send. */
     paused: z<boolean, boolean>;
     /** Persist choices by session, including an explicit return to the profile default. */
     sessionModes: z<import("@deepseek-ai/cosmokit").Dict<"default" | "off" | "recover" | "loop", string>, import("@deepseek-ai/cosmokit").Dict<"default" | "off" | "recover" | "loop", string>>;
@@ -240,9 +240,9 @@ export declare const Config: z<Schemastery.ObjectS<{
     guardDoneText: z<string, string>;
     /** Grace period after an interruption before auto-sending (ms). */
     graceMs: z<number, number>;
-    /** Minimum interval between two smart-continues per session (ms). */
+    /** Minimum interval between two until-dones per session (ms). */
     cooldownMs: z<number, number>;
-    /** Max consecutive smart-continues per session before stopping. */
+    /** Max consecutive until-dones per session before stopping. */
     maxConsecutive: z<number, number>;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot: z<boolean, boolean>;
@@ -250,9 +250,9 @@ export declare const Config: z<Schemastery.ObjectS<{
     scanLimit: z<number, number>;
     /** Interruption freshness and duration of startup polling (ms). */
     freshMs: z<number, number>;
-    /** Log `[smart-continue]` lines to the browser console. */
+    /** Log `[until-done]` lines to the browser console. */
     verbose: z<boolean, boolean>;
-    /** Classify failures: smart-continue transient errors only; permanent ones are skipped and notified. */
+    /** Classify failures: until-done transient errors only; permanent ones are skipped and notified. */
     classify: z<boolean, boolean>;
     /** Provider-specific message/code/status fragments that explicitly count as retryable, one literal per line. */
     retryableErrorPatterns: z<string, string>;
@@ -260,9 +260,9 @@ export declare const Config: z<Schemastery.ObjectS<{
     backoffFactor: z<number, number>;
     /** Cap on the effective backoff interval (ms). */
     backoffMaxMs: z<number, number>;
-    /** Show browser notifications for smart-continue events. */
+    /** Show browser notifications for until-done events. */
     notify: z<boolean, boolean>;
-    /** Globally pause smart-continue: no live or scan send. */
+    /** Globally pause until-done: no live or scan send. */
     paused: z<boolean, boolean>;
     /** Persist choices by session, including an explicit return to the profile default. */
     sessionModes: z<import("@deepseek-ai/cosmokit").Dict<"default" | "off" | "recover" | "loop", string>, import("@deepseek-ai/cosmokit").Dict<"default" | "off" | "recover" | "loop", string>>;
@@ -337,9 +337,9 @@ export declare const Config: z<Schemastery.ObjectS<{
     guardDoneText: z<string, string>;
     /** Grace period after an interruption before auto-sending (ms). */
     graceMs: z<number, number>;
-    /** Minimum interval between two smart-continues per session (ms). */
+    /** Minimum interval between two until-dones per session (ms). */
     cooldownMs: z<number, number>;
-    /** Max consecutive smart-continues per session before stopping. */
+    /** Max consecutive until-dones per session before stopping. */
     maxConsecutive: z<number, number>;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot: z<boolean, boolean>;
@@ -347,9 +347,9 @@ export declare const Config: z<Schemastery.ObjectS<{
     scanLimit: z<number, number>;
     /** Interruption freshness and duration of startup polling (ms). */
     freshMs: z<number, number>;
-    /** Log `[smart-continue]` lines to the browser console. */
+    /** Log `[until-done]` lines to the browser console. */
     verbose: z<boolean, boolean>;
-    /** Classify failures: smart-continue transient errors only; permanent ones are skipped and notified. */
+    /** Classify failures: until-done transient errors only; permanent ones are skipped and notified. */
     classify: z<boolean, boolean>;
     /** Provider-specific message/code/status fragments that explicitly count as retryable, one literal per line. */
     retryableErrorPatterns: z<string, string>;
@@ -357,9 +357,9 @@ export declare const Config: z<Schemastery.ObjectS<{
     backoffFactor: z<number, number>;
     /** Cap on the effective backoff interval (ms). */
     backoffMaxMs: z<number, number>;
-    /** Show browser notifications for smart-continue events. */
+    /** Show browser notifications for until-done events. */
     notify: z<boolean, boolean>;
-    /** Globally pause smart-continue: no live or scan send. */
+    /** Globally pause until-done: no live or scan send. */
     paused: z<boolean, boolean>;
     /** Persist choices by session, including an explicit return to the profile default. */
     sessionModes: z<import("@deepseek-ai/cosmokit").Dict<"default" | "off" | "recover" | "loop", string>, import("@deepseek-ai/cosmokit").Dict<"default" | "off" | "recover" | "loop", string>>;

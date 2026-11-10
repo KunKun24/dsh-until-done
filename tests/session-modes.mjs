@@ -14,7 +14,7 @@ function host(options = {}) {
   h.provide('settings', {
     writable: true,
     async mutate(ns, ops) {
-      assert.equal(ns, 'smart-continue');
+      assert.equal(ns, 'until-done');
       for (const op of ops) {
         assert.equal(op.op, 'set');
         assert.equal(op.path[0], 'sessionModes');

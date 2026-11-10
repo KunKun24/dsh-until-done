@@ -1,9 +1,9 @@
 /**
  * Auto-continue plugin, browser half (thin shell).
  *
- * Since 0.8.0 the smart-continue ENGINE runs inside the host process (single
+ * Since 0.8.0 the until-done ENGINE runs inside the host process (single
  * instance — see src/host/engine.ts), so this half only:
- * - registers the `smart-continue` settings card in the available plugin UI,
+ * - registers the `until-done` settings card in the available plugin UI,
  * - adds a per-session composer switch and mode menu backed by host settings,
  * - subscribes to the host status bridge (SSE) and shows browser
  *   notifications with action buttons (Resume now / Pause 1h) via the bridge
@@ -29,8 +29,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
         };
     }
     interface LocaleNamespaceMap {
-        /** smart-continue settings-card copy. */
-        'smart-continue': SettingsCardKey;
+        /** until-done settings-card copy. */
+        'until-done': SettingsCardKey;
     }
 }
 /** Settings services are injected separately: neither exists in every DSH cohort. */

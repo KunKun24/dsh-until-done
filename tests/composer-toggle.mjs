@@ -123,7 +123,7 @@ function fixture(service, server, hasComposerSlot = true, primitives = {}) {
         if (name === settingsSlot || (hasComposerSlot && name === 'conversation.input.left')) ctx.effect(mount);
       },
       register(options, component) {
-        if (options.name === 'conversation.input.left') assert.equal(options.id, 'smart-continue');
+        if (options.name === 'conversation.input.left') assert.equal(options.id, 'until-done');
         assert.ok(!entries.has(options.name));
         entries.set(options.name, { component, face: options.inject('A'), inject: options.inject });
         return () => entries.delete(options.name);

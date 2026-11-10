@@ -1,9 +1,9 @@
 /**
  * Auto-continue plugin, browser half (thin shell).
  *
- * Since 0.8.0 the smart-continue ENGINE runs inside the host process (single
+ * Since 0.8.0 the until-done ENGINE runs inside the host process (single
  * instance — see src/host/engine.ts), so this half only:
- * - registers the `smart-continue` settings card in the available plugin UI,
+ * - registers the `until-done` settings card in the available plugin UI,
  * - adds a per-session composer switch and mode menu backed by host settings,
  * - subscribes to the host status bridge (SSE) and shows browser
  *   notifications with action buttons (Resume now / Pause 1h) via the bridge
@@ -32,10 +32,10 @@ import type { SettingsScope } from './dsh-store-compat.ts';
 import { canWriteSettings } from './settings-form.ts';
 
 /** Dictionary namespace owned by this plugin. */
-const NS = 'smart-continue';
+const NS = 'until-done';
 
 /** Settings namespace the settings card edits (the host engine reads it). */
-const SETTINGS_NS = 'smart-continue';
+const SETTINGS_NS = 'until-done';
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
@@ -52,8 +52,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     };
   }
   interface LocaleNamespaceMap {
-    /** smart-continue settings-card copy. */
-    'smart-continue': SettingsCardKey;
+    /** until-done settings-card copy. */
+    'until-done': SettingsCardKey;
   }
 }
 
@@ -80,8 +80,8 @@ export {
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'smart-continue: dictionaries');
-  ctx.effect(() => startBridge(), 'smart-continue: host bridge');
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'until-done: dictionaries');
+  ctx.effect(() => startBridge(), 'until-done: host bridge');
 
   // Cordis waits for ALL top-level dependencies. Requiring settingsScope here
   // would leave DSH 0.1.7 pending forever; requiring configForms breaks older
@@ -142,18 +142,18 @@ function mountSettings(ctx: ClientContext, scope: SettingsScope<AutoContinueSett
     mirrorAttempts += 1;
     void scope.set('locale', target);
   };
-  ctx.effect(() => scope.subscribe(syncLocale), 'smart-continue: locale settings sync');
+  ctx.effect(() => scope.subscribe(syncLocale), 'until-done: locale settings sync');
   ctx.on('locale/change', syncLocale);
   syncLocale();
 
   const controller = new AutoContinueSettingsCardController(scope, () => ctx.locale.getLocale().active);
-  ctx.effect(() => () => controller.dispose(), 'smart-continue: settings form');
+  ctx.effect(() => () => controller.dispose(), 'until-done: settings form');
 
   ctx.slots.inject('conversation.input.left', () =>
     ctx.slots.register(
       {
         name: 'conversation.input.left',
-        id: 'smart-continue',
+        id: 'until-done',
         locale: NS,
         inject: (sessionId) => controller.injectComposer(sessionId),
       },
@@ -178,7 +178,7 @@ function mountSettings(ctx: ClientContext, scope: SettingsScope<AutoContinueSett
     ctx.slots.register(
       {
         name: 'plugins.bundle.config',
-        key: 'dsh-smart-continue',
+        key: 'dsh-until-done',
         locale: NS,
         inject: () => controller.inject(),
       },

@@ -18,7 +18,7 @@ const { Context } = await load('cordis');
 const { default: Loader } = await load('cordis-plugin-loader');
 const { default: Settings } = await load('dsh-settings');
 const { default: WebServer } = await load('dsh-host-webserver');
-const fixture = mkdtempSync(join(tmpdir(), 'smart-continue-live-settings-'));
+const fixture = mkdtempSync(join(tmpdir(), 'until-done-live-settings-'));
 mkdirSync(join(fixture, 'lib'));
 copyFileSync(join(project, 'lib/index.js'), join(fixture, 'lib/index.js'));
 copyFileSync(join(project, 'package.json'), join(fixture, 'package.json'));
@@ -28,7 +28,7 @@ const ctx = new Context();
 const base = { scanOnBoot: false, verbose: false, graceMs: 40, cooldownMs: 0, sessionModes: { inherited: 'off' } };
 const profileFile = join(fixture, 'profile.json');
 const legacyFile = join(fixture, 'settings-legacy.yaml');
-const legacySource = 'smart-continue:\n  paused: true\n  continueTextMaxTokens: Keep my prompt\nother-plugin:\n  keep: untouched\n';
+const legacySource = 'until-done:\n  paused: true\n  continueTextMaxTokens: Keep my prompt\nother-plugin:\n  keep: untouched\n';
 if (mixed) writeFileSync(legacyFile, legacySource);
 const followups = [];
 const session = { id: 'settings-test', header: {}, snapshotEvents: () => [] };
@@ -63,9 +63,9 @@ try {
     ctx.settings.get = () => undefined;
   }
   await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 });
-  await ctx.loader.create({ id: 'smart-continue', name: pathToFileURL(join(fixture, 'lib/index.js')).href, config: base });
+  await ctx.loader.create({ id: 'until-done', name: pathToFileURL(join(fixture, 'lib/index.js')).href, config: base });
   await ctx.loader.await();
-  const entry = ctx.loader.resolve('smart-continue');
+  const entry = ctx.loader.resolve('until-done');
   const uid = entry.fiber.uid;
   const origin = `http://127.0.0.1:${ctx.webServer.port}`;
   const until = async predicate => {
@@ -73,18 +73,18 @@ try {
     assert.ok(predicate(), 'state converges within one second');
   };
   const setMode = async (sessionId, mode) => {
-    const response = await fetch(`${origin}/api/smart-continue-action`, {
+    const response = await fetch(`${origin}/api/until-done-action`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ action: 'set-session-mode', sessionId, mode }),
     });
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { ok: true, sessionId, mode });
   };
-  const form = () => ctx.settings.describe().find((row) => row.ns === 'smart-continue');
+  const form = () => ctx.settings.describe().find((row) => row.ns === 'until-done');
   if (mixed) {
     for (let n = 0; n < 100 && !form()?.value._legacySettingsImported; n++) await sleep(10);
     assert.equal(legacyRegistrations, 0);
-    assert.equal(ctx.settings.describe().filter(row => row.ns === 'smart-continue').length, 1);
+    assert.equal(ctx.settings.describe().filter(row => row.ns === 'until-done').length, 1);
     assert.equal(form().value._legacySettingsImported, true);
     assert.equal(form().value.continueTextMaxTokens, 'Keep my prompt');
     assert.equal(readFileSync(legacyFile, 'utf8'), legacySource);
@@ -132,7 +132,7 @@ try {
       await client.plugin(browserModule(join(project, 'lib/client.js')));
       const flush = () => new Promise(resolve => setImmediate(resolve));
       for (let n = 0; n < 10; n++) await flush();
-      const scope = client.configForms.get('smart-continue');
+      const scope = client.configForms.get('until-done');
       assert.equal(scope.getSnapshot().status, 'ready');
       assert.equal(Object.hasOwn(scope.getSnapshot(), 'mode'), false, 'use the actual rc.2 snapshot contract');
       assert.equal(form().value.locale, 'en', 'locale mirror writes through the real form');
@@ -167,25 +167,25 @@ try {
     console.log('DSH rc.2 actual client forms: card save/reset, composer session modes, locale mirror and reload ✅');
   }
 
-  const bridge = await fetch(`http://127.0.0.1:${ctx.webServer.port}/api/smart-continue-bridge`);
+  const bridge = await fetch(`http://127.0.0.1:${ctx.webServer.port}/api/until-done-bridge`);
   assert.equal(bridge.status, 200);
   const reader = bridge.body.getReader();
   assert.match(new TextDecoder().decode((await reader.read()).value), /"type":"state"/);
   await reader.cancel();
 
   end(1);
-  await ctx.settings.update('smart-continue', { paused: true });
-  await ctx.settings.update('smart-continue', { paused: false });
+  await ctx.settings.update('until-done', { paused: true });
+  await ctx.settings.update('until-done', { paused: false });
   await sleep(80);
   assert.equal(followups.length, 0, 'pausing cancels queued work even when unpaused before grace expires');
   assert.equal(entry.fiber.uid, uid, 'settings edits keep the same engine instance');
-  await ctx.settings.update('smart-continue', { paused: false, locale: 'en', continueTextMaxTokens: 'Keep going' });
+  await ctx.settings.update('until-done', { paused: false, locale: 'en', continueTextMaxTokens: 'Keep going' });
   end(2);
   await sleep(80);
   assert.equal(followups.length, 1);
   assert.equal(followups[0].content[0].text, 'Keep going', 'the engine reads the latest live text');
   assert.equal(entry.fiber.uid, uid);
-  await ctx.settings.mutate('smart-continue', [{ op: 'unset', path: ['continueTextMaxTokens'] }]);
+  await ctx.settings.mutate('until-done', [{ op: 'unset', path: ['continueTextMaxTokens'] }]);
   end(3);
   await sleep(80);
   assert.equal(followups[1].content[0].text, 'Continue', 'reset restores the localized default');
@@ -196,8 +196,8 @@ try {
   assert.equal(form().value.sessionModes.inherited, 'default', 'explicit default masks an inherited off override');
   const persisted = JSON.parse(readFileSync(profileFile, 'utf8'));
   assert.equal(persisted.sessionModes[session.id], 'off');
-  await ctx.loader.remove('smart-continue');
-  await ctx.loader.create({ id: 'smart-continue', name: pathToFileURL(join(fixture, 'lib/index.js')).href, config: persisted });
+  await ctx.loader.remove('until-done');
+  await ctx.loader.create({ id: 'until-done', name: pathToFileURL(join(fixture, 'lib/index.js')).href, config: persisted });
   await ctx.loader.await();
   assert.equal(form().value.sessionModes[session.id], 'off', 'a fresh engine restores the persisted session choice');
   end(4);
@@ -206,18 +206,18 @@ try {
   if (mixed) {
     assert.equal(form().value._legacySettingsImported, true, 'normal settings edits retain the import marker');
     assert.equal(readFileSync(legacyFile, 'utf8'), legacySource, 'legacy and unrelated settings stay untouched');
-    const saved = structuredClone(ctx.loader.resolve('smart-continue').options.config);
-    await ctx.loader.remove('smart-continue');
-    await ctx.loader.create({ id: 'smart-continue', name: pathToFileURL(join(fixture, 'lib/index.js')).href, config: saved });
+    const saved = structuredClone(ctx.loader.resolve('until-done').options.config);
+    await ctx.loader.remove('until-done');
+    await ctx.loader.create({ id: 'until-done', name: pathToFileURL(join(fixture, 'lib/index.js')).href, config: saved });
     await ctx.loader.await();
     assert.equal(form().value.paused, false, 'remount does not import the old pause again');
     assert.equal(form().value.continueTextMaxTokens, '', 'a reset stays reset after remount');
     assert.equal(legacyRegistrations, 0);
     console.log('Mixed settings APIs: one namespace, migrated pause/text, first-attempt writes and reset after remount ✅');
   }
-  await ctx.loader.remove('smart-continue');
+  await ctx.loader.remove('until-done');
   assert.equal(form(), undefined, 'removing the plugin withdraws its settings');
-  const removed = await fetch(`http://127.0.0.1:${ctx.webServer.port}/api/smart-continue-bridge`);
+  const removed = await fetch(`http://127.0.0.1:${ctx.webServer.port}/api/until-done-bridge`);
   assert.equal(removed.status, 404, 'removing the plugin withdraws the HTTP route');
   await removed.text();
   console.log(`DSH ${runtimeVersion} settings, live edits, HTTP bridge and teardown ✅`);

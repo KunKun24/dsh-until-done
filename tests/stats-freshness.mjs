@@ -3,7 +3,7 @@
  * The host only pushes bridge state from emitState(). Stat bumps used to
  * mutate the in-memory bucket without publishing, so an open settings card
  * only ever saw the numbers it already had. Because notify defaults to false,
- * a plain smart-continue never emitted — leaving "Auto-continued" stuck at 0
+ * a plain until-done never emitted — leaving "Auto-continued" stuck at 0
  * while the engine kept sending.
  *
  * Note: host-fixture.stats() cannot detect this — it opens a *new* SSE
@@ -50,7 +50,7 @@ function makeHost(configOverrides = {}) {
     client() {
       const frames = [];
       let closeCb;
-      routes.get('/api/smart-continue-bridge').handler(
+      routes.get('/api/until-done-bridge').handler(
         { on(_name, cb) { closeCb = cb; } },
         { writeHead() {}, end() {}, write(frame) { frames.push(JSON.parse(frame.slice(6))); } },
       );
@@ -84,8 +84,8 @@ try {
     quiet.emit(agent, turnEnd(turn, 'completed'));
     await flush();
   }
-  assert.equal(agent.followups.length, 3, 'three smart-continues were sent');
-  assert.equal(client.stats().sent, 3, 'every smart-continue is published to the bridge');
+  assert.equal(agent.followups.length, 3, 'three until-dones were sent');
+  assert.equal(client.stats().sent, 3, 'every until-done is published to the bridge');
   assert.deepEqual(client.attempts(), [], 'normal autonomous continuations are not presented as recovery');
   // 2, not 3: recovery is credited when the *next* turn ends, so the third
   // send's outcome is still unresolved at this point.
@@ -126,7 +126,7 @@ try {
   }
   await flush();
   assert.equal(spinner.cancels.length, 1, 'the guard cancelled the spinning turn');
-  guard.emit(spinner, turnEnd(1, 'aborted', { reason: { kind: 'hook', reason: 'dsh-smart-continue:loop-guard' } }));
+  guard.emit(spinner, turnEnd(1, 'aborted', { reason: { kind: 'hook', reason: 'dsh-until-done:loop-guard' } }));
   await flush();
   assert.equal(guardClient.stats().looped, 1, 'loop-guard restarts are published');
   assert.equal(guardClient.attempts()[0].reason, 'loop-guard');

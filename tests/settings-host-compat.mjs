@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const testsRoot = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(testsRoot, '..');
-const fixtureRoot = mkdtempSync(join(tmpdir(), 'smart-continue-settings-compat-'));
+const fixtureRoot = mkdtempSync(join(tmpdir(), 'until-done-settings-compat-'));
 
 try {
   mkdirSync(join(fixtureRoot, 'pkg'), { recursive: true });
@@ -64,7 +64,7 @@ try {
   const { Context } = await import('@deepseek-ai/cordis');
   const { SettingsProvider } = await import('@deepseek-ai/dsh-settings');
   const settingsFile = join(fixtureRoot, 'settings.json');
-  writeFileSync(settingsFile, JSON.stringify({ 'smart-continue': { paused: true, verbose: false, scanOnBoot: false, graceMs: 5, cooldownMs: 0 } }));
+  writeFileSync(settingsFile, JSON.stringify({ 'until-done': { paused: true, verbose: false, scanOnBoot: false, graceMs: 5, cooldownMs: 0 } }));
   class FileSettings extends SettingsProvider {
     writable = true;
     async load() {
@@ -87,29 +87,29 @@ try {
     await ctx.plugin(FileSettings);
     const fiber = ctx.plugin(loaded);
     await fiber;
-    assert.equal(ctx.settings.get('smart-continue').paused, true, 'legacy stored settings are registered');
+    assert.equal(ctx.settings.get('until-done').paused, true, 'legacy stored settings are registered');
     const end = (turn) => ctx.emit('session/event', session, {
       type: 'turn/end', seq: turn * 10, time: Date.now(), data: { turn, reason: { kind: 'max-tokens' } },
     });
     end(1);
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(sent.length, 0, 'the legacy pause still prevents sends');
-    await ctx.settings.update('smart-continue', { paused: false, continueTextMaxTokens: 'Legacy text' });
+    await ctx.settings.update('until-done', { paused: false, continueTextMaxTokens: 'Legacy text' });
     end(2);
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(sent[0].content[0].text, 'Legacy text', 'legacy live updates reach the engine');
     const result = await new Promise(resolve => {
       const handlers = new Map();
-      routes.get('/api/smart-continue-action').handler({ on(name, handler) { handlers.set(name, handler); } }, {
+      routes.get('/api/until-done-action').handler({ on(name, handler) { handlers.set(name, handler); } }, {
         writeHead() {}, end(body) { resolve(JSON.parse(body)); },
       });
       handlers.get('data')(Buffer.from(JSON.stringify({ action: 'set-session-mode', sessionId: 'legacy', mode: 'off' })));
       handlers.get('end')();
     });
     assert.equal(result.ok, true);
-    assert.equal(JSON.parse(readFileSync(settingsFile, 'utf8'))['smart-continue'].sessionModes.legacy, 'off');
+    assert.equal(JSON.parse(readFileSync(settingsFile, 'utf8'))['until-done'].sessionModes.legacy, 'off');
     await fiber.dispose();
-    assert.equal(ctx.settings.get('smart-continue'), undefined);
+    assert.equal(ctx.settings.get('until-done'), undefined);
     assert.equal(routes.size, 0);
     console.log('Legacy settings registration, live edits and teardown ✅');
   } finally {
@@ -121,7 +121,7 @@ try {
   try {
     await restarted.plugin(FileSettings);
     await restarted.plugin(loaded);
-    assert.equal(restarted.settings.get('smart-continue').sessionModes.legacy, 'off');
+    assert.equal(restarted.settings.get('until-done').sessionModes.legacy, 'off');
     restarted.emit('session/event', session, { type: 'turn/end', seq: 30, time: Date.now(), data: { turn: 3, reason: { kind: 'max-tokens' } } });
     await new Promise(resolve => setTimeout(resolve, 20));
     console.log('Legacy session mode persists to disk and survives a fresh host context ✅');

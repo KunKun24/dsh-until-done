@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-基于上游 `dsh-auto-continue` 0.18.0 改造的独立插件，包名与设置命名空间改为 `dsh-smart-continue`。
+基于上游 `dsh-auto-continue` 0.18.0 改造的独立插件，包名与设置命名空间改为 `dsh-until-done`。
 
 ### 新增
 

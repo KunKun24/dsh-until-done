@@ -41,7 +41,7 @@ export function migrateLegacySettings(
 
   ctx.inject(['profileContext'], (injected) => {
     const migration = injected as MigrationContext;
-    const completedPath = join(migration.profileContext.dir, '.smart-continue-settings-imported');
+    const completedPath = join(migration.profileContext.dir, '.until-done-settings-imported');
     let disposed = false;
     pending = true;
     migration.effect(() => () => { disposed = true; });
@@ -49,7 +49,7 @@ export function migrateLegacySettings(
       if (disposed) return;
       // YAML errors may quote other plugins' secrets, so do not log the source
       // or parser exception. Leave the original document available for repair.
-      migration.logger.error('[smart-continue] Could not import settings-legacy.yaml; automatic recovery and loop guard are held until the file/profile can be read and saved, then restart the host');
+      migration.logger.error('[until-done] Could not import settings-legacy.yaml; automatic recovery and loop guard are held until the file/profile can be read and saved, then restart the host');
     };
     // Do not return this task to Cordis: profile edits require the owning entry
     // to be active, and Loader.await() must not wait for this migration itself.
@@ -77,9 +77,9 @@ export function migrateLegacySettings(
       const document: unknown = parse(source, { logLevel: 'silent' });
       if (document === null || document === undefined) return;
       if (!record(document)) throw new Error('Legacy settings must be a mapping');
-      const section = document['smart-continue'];
+      const section = document['until-done'];
       if (section === undefined) return;
-      if (!record(section)) throw new Error('Legacy smart-continue settings must be a mapping');
+      if (!record(section)) throw new Error('Legacy until-done settings must be a mapping');
       const values = Object.fromEntries(fields.filter(key => Object.prototype.hasOwnProperty.call(section, key)).map(key => [key, section[key]]));
       validate(values);
       return values;

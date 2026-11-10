@@ -9,7 +9,7 @@
  * injected by the entry (`apply`'s config argument, merged with schema
  * defaults by `resolveConfig`).
  *
- * All behavior is driven by the `smart-continue` entry config; every knob below
+ * All behavior is driven by the `until-done` entry config; every knob below
  * is user-configurable there.
  */
 
@@ -54,18 +54,18 @@ import { probeConnectivity, type ConnectivityProbe } from './connectivity.ts';
 
 const NOTICE_COPY = {
   zh: {
-    notContinuedTitle: '智能续跑: 未自动继续',
+    notContinuedTitle: '做完为止: 未自动继续',
     permanentErrorBody: (sessionId: SessionId, summary: string) =>
       `${sessionId}: 永久性错误 ${summary}，需要人工处理`,
     resumeAction: '立即续跑',
     pauseAction: '暂停该会话 1 小时',
-    continuedTitle: '智能续跑: 已自动继续',
+    continuedTitle: '做完为止: 已自动继续',
     continuedBody: (sessionId: SessionId, text: string, count: number) =>
       `${sessionId}: 已发送「${text}」(第 ${count} 次连续)`,
-    stoppedTitle: '智能续跑: 已停止自动继续',
+    stoppedTitle: '做完为止: 已停止自动继续',
     stoppedBody: (sessionId: SessionId, count: number) =>
       `${sessionId}: 连续失败 ${count} 次, 需要人工介入`,
-    loopCapTitle: '智能续跑: 自主循环已到上限',
+    loopCapTitle: '做完为止: 自主循环已到上限',
     loopCapBody: (sessionId: SessionId, count: number) =>
       `${sessionId}: 已自主续跑 ${count} 轮, 循环暂停; 发一条消息或重新开启循环即可继续`,
   },
@@ -90,7 +90,7 @@ const NOTICE_COPY = {
 /** Durable cancel identity reserved for this plugin's loop guard. */
 const LOOP_GUARD_CANCEL_CAUSE = {
   kind: 'hook',
-  reason: 'dsh-smart-continue:loop-guard',
+  reason: 'dsh-until-done:loop-guard',
 } as const;
 
 /**
@@ -466,7 +466,7 @@ export class AutoContinueRunner {
         this.onHostEvent(session, event);
       } catch (error) {
         console.error(
-          `[smart-continue] 会话事件处理异常 ${session.id}: ${
+          `[until-done] 会话事件处理异常 ${session.id}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
@@ -490,14 +490,14 @@ export class AutoContinueRunner {
             agent.inbox.append('next-turn', message);
           } catch (rollbackError) {
             console.error(
-              `[smart-continue] 恢复续跑消息失败 ${agent.id}: ${
+              `[until-done] 恢复续跑消息失败 ${agent.id}: ${
                 rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
               }`,
             );
           }
         }
         console.error(
-          `[smart-continue] 调整续跑消息顺序失败 ${agent.id}: ${
+          `[until-done] 调整续跑消息顺序失败 ${agent.id}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
@@ -521,7 +521,7 @@ export class AutoContinueRunner {
   }
 
   private log(message: string): void {
-    if (this.getConfig().verbose) console.info(`[smart-continue] ${message}`);
+    if (this.getConfig().verbose) console.info(`[until-done] ${message}`);
   }
 
   /** 对外(状态桥): 今日统计快照。 */
@@ -1001,7 +1001,7 @@ export class AutoContinueRunner {
         const reason = event.data.reason;
         const reasonKind = readReasonKind(reason);
         if (reasonKind === undefined) {
-          console.error(`[smart-continue] 忽略畸形 turn/end ${sessionId}: reason 无法解释`);
+          console.error(`[until-done] 忽略畸形 turn/end ${sessionId}: reason 无法解释`);
           break;
         }
         if (reasonKind === 'no-visible-output' || (reasonKind === 'completed' && turnOutput === 'silent')) {
@@ -1072,7 +1072,7 @@ export class AutoContinueRunner {
                 try {
                   this.schedule(sessionId, 'loop:aborted');
                 } catch (error) {
-                  console.error(`[smart-continue] loop 重启异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+                  console.error(`[until-done] loop 重启异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }, remaining + 10); // +10ms: the schedule re-check compares Date.now() against the cooldown; a 1ms wall-clock step can otherwise make it read just under, silently dropping the restart
               this.log(`loop 重启延迟 ${remaining}ms(冷却期) ${sessionId}`);
@@ -1096,7 +1096,7 @@ export class AutoContinueRunner {
           // 记录失败事实(分类与模板填充用), 然后按类型处理
           const failure = parseFailureFacts((reason as { error?: unknown }).error);
           if (failure === undefined) {
-            console.error(`[smart-continue] 忽略畸形 turn/end ${sessionId}: error details 无法解释`);
+            console.error(`[until-done] 忽略畸形 turn/end ${sessionId}: error details 无法解释`);
             break;
           }
           state.lastFailure = failure;
@@ -1224,7 +1224,7 @@ export class AutoContinueRunner {
 
   /** 恢复结果记账: 自动发送后窗口内的回合结束, 判定恢复成功或失败。 */
   /**
-   * 智能续跑判定: 正常结束(completed)的回合要不要继续。
+   * 做完为止判定: 正常结束(completed)的回合要不要继续。
    * - 回复以完成暗号收尾 → 任务真完成, 停;
    * - 没有暗号时, 只有本回合动过手(工具调用)或还有 active goal 才继续,
    *   避免对普通问答(「你好」「谢谢」)无休止地续跑。
@@ -1294,7 +1294,7 @@ export class AutoContinueRunner {
     try {
       await this.fire(sessionId, MANUAL_NOTIFICATION_REASON, true);
     } catch (error) {
-      console.error(`[smart-continue] 手动续跑异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`[until-done] 手动续跑异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -1350,7 +1350,7 @@ export class AutoContinueRunner {
       try {
         this.fireWhenOnline(sessionId, reason, force);
       } catch (error) {
-        console.error(`[smart-continue] 定时发送异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`[until-done] 定时发送异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }, config.graceMs);
     state.pendingTimer = timer;
@@ -1375,7 +1375,7 @@ export class AutoContinueRunner {
       try {
         this.schedule(sessionId, reason);
       } catch (error) {
-        console.error(`[smart-continue] 冷却后重试异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`[until-done] 冷却后重试异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }, remaining + 10); // +10ms: 同 loop 重启; 否则 1ms 抖动可能让重检仍判为冷却期而再次丢弃
     this.log(`冷却中 ${sessionId}(${reason}), ${remaining}ms 后重试`);
@@ -1604,7 +1604,7 @@ export class AutoContinueRunner {
         try {
           this.fireWhenOnline(sessionId, reason, force);
         } catch (error) {
-          console.error(`[smart-continue] 断网复检异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+          console.error(`[until-done] 断网复检异常 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }, config.offlineCheckMs);
     });
@@ -1765,7 +1765,7 @@ export class AutoContinueRunner {
           failure = parseFailureFacts((lastEnd.data.reason as { error?: unknown }).error);
           if (failure === undefined) {
             this.bootScannedSessions.add(session);
-            console.error(`[smart-continue] 忽略畸形扫描 turn/end ${sessionId}: error details 无法解释`);
+            console.error(`[until-done] 忽略畸形扫描 turn/end ${sessionId}: error details 无法解释`);
             continue;
           }
           if (config.classify && !isTransientFailure(failure, config.retryableErrorPatterns)) {
@@ -1950,7 +1950,7 @@ export class AutoContinueRunner {
           if (reasonKind === 'error') {
             const failure = parseFailureFacts((lastEnd!.data.reason as { error?: unknown }).error);
             if (failure === undefined) {
-              console.error(`[smart-continue] 忽略畸形存储 turn/end ${sessionId}: error details 无法解释`);
+              console.error(`[until-done] 忽略畸形存储 turn/end ${sessionId}: error details 无法解释`);
               continue;
             }
             // 永久错误同样走 onTurnFailure, 镜像 live 路径的统计与通知旁效。
@@ -2308,7 +2308,7 @@ export class AutoContinueRunner {
 
   /** Captured identity only: even session.id can throw when the header is damaged. */
   private logBootScanFailure(sessionId: SessionId | undefined, error: unknown): void {
-    console.error(`[smart-continue] 启动扫描跳过会话 ${sessionId ?? '(id unavailable)'}: ${
+    console.error(`[until-done] 启动扫描跳过会话 ${sessionId ?? '(id unavailable)'}: ${
       error instanceof Error ? error.message : String(error)
     }`);
   }

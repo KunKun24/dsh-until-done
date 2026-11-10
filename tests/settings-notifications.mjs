@@ -124,7 +124,7 @@ for (const service of ['configForms', 'settingsScope']) {
     f.face.save();
     await flush();
     assert.equal(f.notices.length, 2, 'a multi-field save produces one notification');
-    assert.equal(f.notices[1].body, 'Your smart-continue settings have been saved.');
+    assert.equal(f.notices[1].body, 'Your until-done settings have been saved.');
     assert.doesNotMatch(JSON.stringify(f.notices), /private prompt/);
     f.face.edit('notify', 'false');
     f.face.save();

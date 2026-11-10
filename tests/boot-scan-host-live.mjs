@@ -14,7 +14,7 @@ const load = (name) => import(pathToFileURL(join(modules, '@deepseek-ai', name, 
 const { Context } = await load('cordis');
 const { Session } = await load('dsh-session');
 const { default: WebServer } = await load('dsh-host-webserver');
-const fixture = mkdtempSync(join(tmpdir(), 'smart-continue-boot-scan-'));
+const fixture = mkdtempSync(join(tmpdir(), 'until-done-boot-scan-'));
 mkdirSync(join(fixture, 'lib'));
 copyFileSync(join(pluginRoot, 'lib/index.js'), join(fixture, 'lib/index.js'));
 copyFileSync(join(pluginRoot, 'package.json'), join(fixture, 'package.json'));
@@ -57,7 +57,7 @@ try {
       assert.equal(before.followups.length, 1, `DSH ${version}: ${fault} must not block earlier sessions`);
       assert.equal(after.followups.length, 1, `DSH ${version}: ${fault} must not block later sessions`);
       assert.equal(broken.followups.length, 0, 'the damaged session is not resumed');
-      const response = await fetch(`http://127.0.0.1:${ctx.webServer.port}/api/smart-continue-bridge`);
+      const response = await fetch(`http://127.0.0.1:${ctx.webServer.port}/api/until-done-bridge`);
       assert.equal(response.status, 200);
       const reader = response.body.getReader();
       const state = JSON.parse(new TextDecoder().decode((await reader.read()).value).slice(6));

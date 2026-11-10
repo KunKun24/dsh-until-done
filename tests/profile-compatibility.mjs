@@ -14,14 +14,14 @@ const { evaluatePluginCompatibility, getDshRuntimeVersion, loadProfileDirectory 
 const runtimeVersion = JSON.parse(readFileSync(join(runtime, 'node_modules/@deepseek-ai/dsh-app-boot/package.json'), 'utf8')).version;
 assert.equal(getDshRuntimeVersion(), runtimeVersion);
 const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8'));
-const fixture = mkdtempSync(join(tmpdir(), 'smart-continue-profile-compat-'));
+const fixture = mkdtempSync(join(tmpdir(), 'until-done-profile-compat-'));
 const bundle = join(fixture, 'node_modules', manifest.name);
 const load = () => loadProfileDirectory('dsh', fixture, join(runtime, 'package.json'));
 
 try {
   mkdirSync(bundle, { recursive: true });
   writeFileSync(join(fixture, 'package.json'), JSON.stringify({
-    name: 'smart-continue-profile-test', private: true,
+    name: 'until-done-profile-test', private: true,
     dsh: { profile: { bundles: [manifest.name] } },
   }));
   copyFileSync(join(project, 'cordis.patch.yml'), join(bundle, 'cordis.patch.yml'));

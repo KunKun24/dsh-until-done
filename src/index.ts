@@ -1,10 +1,10 @@
 /**
- * Host half of the smart-continue plugin.
+ * Host half of the until-done plugin.
  *
  * - Configuration is this entry's own Loader config: `apply(ctx, config)`
  *   injects it into the engine, where `resolveConfig` merges it with the
  *   schema defaults (the browser half's settings card writes the same values).
- * - Runs the single-instance smart-continue engine: listens to the session
+ * - Runs the single-instance until-done engine: listens to the session
  *   event firehose, sends via `agent.followup`, cancels via `agent.cancel`.
  * - Serves a status bridge the browser half subscribes to: notifications and
  *   runtime state (stats / pauses), plus an action endpoint for notification
@@ -21,8 +21,8 @@ import type {} from '@deepseek-ai/dsh-agent';
 import type {} from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-settings';
 
-/** Settings namespace of the smart-continue plugin (lowercase kebab-case). */
-export const AUTO_CONTINUE_NS = 'smart-continue';
+/** Settings namespace of the until-done plugin (lowercase kebab-case). */
+export const AUTO_CONTINUE_NS = 'until-done';
 
 /** Wire schema; blank localized text fields tell resolveConfig() to select the active locale's defaults. */
 const settingsFields = {
@@ -56,9 +56,9 @@ const settingsFields = {
     .default(''),
   /** Grace period after an interruption before auto-sending (ms). */
   graceMs: z.natural().default(3000),
-  /** Minimum interval between two smart-continues per session (ms). */
+  /** Minimum interval between two until-dones per session (ms). */
   cooldownMs: z.natural().default(20000),
-  /** Max consecutive smart-continues per session before stopping. */
+  /** Max consecutive until-dones per session before stopping. */
   maxConsecutive: z.natural().min(1).default(3),
   /** Recover delayed interrupted sessions during the host startup window. */
   scanOnBoot: z.boolean().default(true),
@@ -66,9 +66,9 @@ const settingsFields = {
   scanLimit: z.natural().min(1).default(8),
   /** Interruption freshness and duration of startup polling (ms). */
   freshMs: z.natural().default(15 * 60 * 1000),
-  /** Log `[smart-continue]` lines to the browser console. */
+  /** Log `[until-done]` lines to the browser console. */
   verbose: z.boolean().default(true),
-  /** Classify failures: smart-continue transient errors only; permanent ones are skipped and notified. */
+  /** Classify failures: until-done transient errors only; permanent ones are skipped and notified. */
   classify: z.boolean().default(true),
   /** Provider-specific message/code/status fragments that explicitly count as retryable, one literal per line. */
   retryableErrorPatterns: z.string().default(''),
@@ -76,9 +76,9 @@ const settingsFields = {
   backoffFactor: z.natural().min(1).default(2),
   /** Cap on the effective backoff interval (ms). */
   backoffMaxMs: z.natural().default(300000),
-  /** Show browser notifications for smart-continue events. */
+  /** Show browser notifications for until-done events. */
   notify: z.boolean().default(false),
-  /** Globally pause smart-continue: no live or scan send. */
+  /** Globally pause until-done: no live or scan send. */
   paused: z.boolean().default(false),
   /** Persist choices by session, including an explicit return to the profile default. */
   sessionModes: z.dict(z.union(['default', 'off', 'recover', 'loop'])).default({}).hidden(),
@@ -197,7 +197,7 @@ export function apply(ctx: Context, config?: AutoContinueEntryConfig): void {
     if (typeof prompts?.section !== 'function') return;
     // `interpolate` 尚未出现在 devDependency 的 PromptSection 类型里, 但运行时支持。
     prompts.section({
-      name: 'smart-continue-completion-rule',
+      name: 'until-done-completion-rule',
       order: 900,
       interpolate: false,
       text: () => promptRunner?.completionDirective() ?? '',
@@ -259,7 +259,7 @@ export function apply(ctx: Context, config?: AutoContinueEntryConfig): void {
 
     const stopBridge = engineCtx.webServer.register({
       kind: 'exact',
-      path: '/api/smart-continue-bridge',
+      path: '/api/until-done-bridge',
       handler: (req, res) => {
         res.writeHead(200, {
           'content-type': 'text/event-stream',
@@ -283,7 +283,7 @@ export function apply(ctx: Context, config?: AutoContinueEntryConfig): void {
     // 通知按钮动作: browser 点击「立即续跑 / 暂停该会话」时 POST 到这里。
     const stopActions = engineCtx.webServer.register({
       kind: 'exact',
-      path: '/api/smart-continue-action',
+      path: '/api/until-done-action',
       handler: (req, res) => {
         let body = '';
         req.on('data', (chunk: Buffer) => {

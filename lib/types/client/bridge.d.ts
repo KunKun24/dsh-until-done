@@ -1,9 +1,9 @@
 /**
  * Host status bridge, browser side.
  *
- * Subscribes to the host engine's `/api/smart-continue-bridge` SSE stream:
+ * Subscribes to the host engine's `/api/until-done-bridge` SSE stream:
  * notifications (shown via the browser Notification API, action buttons POST
- * to `/api/smart-continue-action`) and runtime state (today's stats and the
+ * to `/api/until-done-action`) and runtime state (today's stats and the
  * paused-sessions list) consumed by the settings card's live panels.
  */
 import type { RecoveryAttempt, SessionMode, SessionPolicy } from '../shared/core.ts';

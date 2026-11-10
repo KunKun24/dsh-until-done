@@ -11,7 +11,7 @@ const load = name => import(pathToFileURL(join(modules, '@deepseek-ai', name, 'l
 const { Context } = await load('cordis');
 const { default: Loader } = await load('cordis-plugin-loader');
 const { default: Settings } = await load('dsh-settings');
-const fixture = mkdtempSync(join(tmpdir(), 'smart-continue-migration-'));
+const fixture = mkdtempSync(join(tmpdir(), 'until-done-migration-'));
 mkdirSync(join(fixture, 'lib'));
 copyFileSync(join(project, 'lib/index.js'), join(fixture, 'lib/index.js'));
 copyFileSync(join(project, 'package.json'), join(fixture, 'package.json'));
@@ -23,7 +23,7 @@ async function until(check) {
   assert.ok(check(), 'migration settled within one second');
 }
 const base = { scanOnBoot: false, verbose: false, graceMs: 1, cooldownMs: 0, locale: 'en' };
-const source = 'smart-continue:\n  paused: true\n  continueTextMaxTokens: My saved prompt\n  cooldownMs: 99\n  futureOption: keep in old file\nother-plugin:\n  password: !private leave alone\n';
+const source = 'until-done:\n  paused: true\n  continueTextMaxTokens: My saved prompt\n  cooldownMs: 99\n  futureOption: keep in old file\nother-plugin:\n  password: !private leave alone\n';
 
 async function host(options = {}) {
   const ctx = new Context();
@@ -32,7 +32,7 @@ async function host(options = {}) {
   mkdirSync(dir, { recursive: true });
   const legacy = join(home, 'settings-legacy.yaml');
   const profile = join(dir, 'profile.json');
-  const completed = join(dir, '.smart-continue-settings-imported');
+  const completed = join(dir, '.until-done-settings-imported');
   if (options.source !== undefined) writeFileSync(legacy, options.source);
   if (options.unreadable) mkdirSync(legacy);
   const followups = [];
@@ -64,13 +64,13 @@ async function host(options = {}) {
   ctx.provide('agents', { list: () => [], get: () => agent });
   ctx.provide('webServer', { register: () => () => {} });
   await ctx.plugin(Settings);
-  await ctx.loader.create({ id: 'smart-continue', name: plugin, config: { ...base, ...options.config } });
+  await ctx.loader.create({ id: 'until-done', name: plugin, config: { ...base, ...options.config } });
   await ctx.loader.await();
   return {
     ctx, home, legacy, profile, completed, followups,
     provideEditor: () => ctx.provide('configEditor', editor),
     edits: () => edits,
-    value: () => ctx.settings?.describe().find(row => row.ns === 'smart-continue')?.value,
+    value: () => ctx.settings?.describe().find(row => row.ns === 'until-done')?.value,
     end: () => ctx.emit('session/event', session, {
       type: 'turn/end', seq: ++turn * 10, time: Date.now(), data: { turn, reason: { kind: 'max-tokens' } },
     }),
@@ -88,17 +88,17 @@ try {
     assert.equal(migrated.value().paused, true);
     assert.equal(migrated.value().continueTextMaxTokens, 'My saved prompt');
     assert.equal(migrated.value().cooldownMs, 0, 'existing profile config wins');
-    assert.equal(migrated.ctx.loader.resolve('smart-continue').options.config.futureOption, undefined);
+    assert.equal(migrated.ctx.loader.resolve('until-done').options.config.futureOption, undefined);
     assert.equal(readFileSync(migrated.legacy, 'utf8'), source, 'all legacy bytes remain intact');
     assert.equal(warnings.length, 0, 'parser warnings must not log other plugins settings');
     migrated.end();
     await sleep(30);
     assert.equal(migrated.followups.length, 0, 'imported pause controls the engine');
-    await migrated.ctx.settings.update('smart-continue', { paused: false });
+    await migrated.ctx.settings.update('until-done', { paused: false });
     migrated.end();
     await until(() => migrated.followups.length === 1);
     assert.equal(migrated.followups[0].content[0].text, 'My saved prompt');
-    await migrated.ctx.settings.mutate('smart-continue', [{ op: 'unset', path: ['continueTextMaxTokens'] }]);
+    await migrated.ctx.settings.mutate('until-done', [{ op: 'unset', path: ['continueTextMaxTokens'] }]);
     await until(() => existsSync(migrated.completed));
   } finally { console.warn = originalWarn; await migrated.close(); }
   const restarted = await host({ home: migrated.home, config: JSON.parse(readFileSync(migrated.profile, 'utf8')) });
@@ -111,7 +111,7 @@ try {
 
   const reset = await host({ home: migrated.home, config: JSON.parse(readFileSync(migrated.profile, 'utf8')) });
   try {
-    await reset.ctx.settings.replace('smart-continue', {});
+    await reset.ctx.settings.replace('until-done', {});
     assert.equal(reset.value()._legacySettingsImported, false, 'whole-config reset also clears hidden fields');
   } finally { await reset.close(); }
   const resetRestart = await host({ home: reset.home, config: JSON.parse(readFileSync(reset.profile, 'utf8')) });
@@ -185,9 +185,9 @@ try {
   console.log('Late profile editor cannot briefly enable recovery before importing a pause ✅');
 
   for (const [name, options] of [
-    ['invalid YAML', { source: 'smart-continue: [broken' }],
-    ['invalid section', { source: 'smart-continue: [true]' }],
-    ['invalid setting', { source: 'smart-continue:\n  paused: not-a-boolean\n' }],
+    ['invalid YAML', { source: 'until-done: [broken' }],
+    ['invalid section', { source: 'until-done: [true]' }],
+    ['invalid setting', { source: 'until-done:\n  paused: not-a-boolean\n' }],
     ['unreadable file', { unreadable: true }],
     ['failed profile write', { source, failWrite: true }],
   ]) {
@@ -217,7 +217,7 @@ try {
   let finish;
   const unloading = await host({ source, beforeEdit: () => new Promise(resolve => { finish = resolve; }) });
   await until(() => unloading.edits() === 1);
-  await unloading.ctx.loader.remove('smart-continue');
+  await unloading.ctx.loader.remove('until-done');
   finish();
   await sleep(30);
   assert.throws(() => readFileSync(unloading.profile), { code: 'ENOENT' });

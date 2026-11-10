@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Smart Continue",
+    "title": "Until Done",
     "description": "Keeps a finished-but-unfinished task going, and stops only when the reply ends with the completion keyword."
   }
 }

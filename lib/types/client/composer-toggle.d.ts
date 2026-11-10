@@ -15,4 +15,4 @@ export interface ComposerToggleFace {
     sessionId: string;
     setMode: (mode: SessionMode) => void;
 }
-export declare function AutoContinueComposerToggle(props: PropsLocale<'smart-continue'> & InjectFace<ComposerToggleFace>): import("react").JSX.Element | null;
+export declare function AutoContinueComposerToggle(props: PropsLocale<'until-done'> & InjectFace<ComposerToggleFace>): import("react").JSX.Element | null;

@@ -10,7 +10,7 @@ const { freshState, trackPendingEcho, isOurEcho } = await import(
   `data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`
 );
 
-for (const kind of ['plugin:dsh-smart-continue', 'user']) {
+for (const kind of ['plugin:dsh-until-done', 'user']) {
   test(`${kind} echo matches and consumes its pending message ID once`, () => {
     const state = freshState();
     const event = {

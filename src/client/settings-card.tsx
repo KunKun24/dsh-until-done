@@ -1,5 +1,5 @@
 /**
- * The smart-continue settings card: edits the `smart-continue` namespace fields
+ * The until-done settings card: edits the `until-done` namespace fields
  * from the legacy settings section or the bundle's plugin-manager page.
  *
  * Self-contained card chrome (disclosure header, staged fields, save/discard
@@ -76,7 +76,7 @@ const NativeValueField = nativeSettings.SettingsValueField;
 const NativeSegmentedControl = nativeSettings.SegmentedControl;
 const hasNativeSettings = typeof NativeSettingsForm === 'function' && typeof NativeValueField === 'function';
 
-/** What the smart-continue card renders. */
+/** What the until-done card renders. */
 export interface AutoContinueSettingsCardState extends CardShell {
   /** Committed global state; a staged edit does not pause the engine yet. */
   enabled: boolean;
@@ -138,7 +138,7 @@ export interface AutoContinueSettingsCardFace extends CardActions {
   };
 }
 
-/** Bridges the `smart-continue` scope onto the card's staged form. */
+/** Bridges the `until-done` scope onto the card's staged form. */
 export class AutoContinueSettingsCardController {
   private readonly form: CardForm<AutoContinueSettings>;
   private readonly store: SnapshotStore<AutoContinueSettingsCardState>;
@@ -151,7 +151,7 @@ export class AutoContinueSettingsCardController {
   private notificationFeedback: SettingsCardKey | undefined;
 
   /**
-   * @param scope - the bound settings scope for the `smart-continue` namespace.
+   * @param scope - the bound settings scope for the `until-done` namespace.
    */
   constructor(
     private readonly scope: SettingsScope<AutoContinueSettings>,
@@ -331,9 +331,9 @@ export class AutoContinueSettingsCardController {
   }
 }
 
-/** Props the renderer binds for the smart-continue plugin-configuration card. */
+/** Props the renderer binds for the until-done plugin-configuration card. */
 export type AutoContinueSettingsCardProps =
-  PropsLocale<'smart-continue'> & InjectFace<AutoContinueSettingsCardFace>;
+  PropsLocale<'until-done'> & InjectFace<AutoContinueSettingsCardFace>;
 
 /** The bundle page supplies no list container, unlike the legacy settings slot. */
 export function AutoContinueSettingsPage(props: AutoContinueSettingsCardProps) {
@@ -364,7 +364,7 @@ const textDefaults: Partial<Record<FieldName, SettingsCardKey>> = {
   continueTextRateLimit: 'default.continueTextRateLimit', continueTextServer: 'default.continueTextServer',
 };
 
-const REPOSITORY_URL = 'https://github.com/KunKun24/dsh-smart-continue';
+const REPOSITORY_URL = 'https://github.com/KunKun24/dsh-until-done';
 
 function RepositoryInvite({ t }: { t: (key: SettingsCardKey) => string }) {
   return <p className="dshAcInvite">

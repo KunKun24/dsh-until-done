@@ -64,7 +64,7 @@ export function makeHost(overrides = {}) {
     resumes: () => resumes,
     logs,
     start() { apply(ctx, config); },
-    settingsChanged() { for (const callback of handlers.get('settings/updated') ?? []) callback('smart-continue'); },
+    settingsChanged() { for (const callback of handlers.get('settings/updated') ?? []) callback('until-done'); },
     emit(agent, event) { for (const callback of handlers.get('session/event') ?? []) callback(agent.session, event); },
     agent(id, events = []) { return buildAgent(id, events); },
     /** 声明某次 resume 注册后, 该 agent 快照给扫描看的事件(真实宿主由修复管线补齐)。 */
@@ -72,14 +72,14 @@ export function makeHost(overrides = {}) {
     stats() {
       let state;
       let close;
-      routes.get('/api/smart-continue-bridge').handler({ on(_name, callback) { close = callback; } }, {
+      routes.get('/api/until-done-bridge').handler({ on(_name, callback) { close = callback; } }, {
         writeHead() {}, end() {}, write(frame) { state = JSON.parse(frame.slice(6)); },
       });
       close();
       return state.stats;
     },
     postAction(payload) {
-      const route = routes.get('/api/smart-continue-action');
+      const route = routes.get('/api/until-done-action');
       if (route === undefined) throw new Error('action route is not registered');
       return new Promise((resolve) => {
         const handlers = new Map();

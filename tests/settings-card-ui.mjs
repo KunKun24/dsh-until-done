@@ -142,14 +142,14 @@ for (const locale of ['en', 'zh']) {
     assert.doesNotMatch(button[0], /<a\b/, 'external link must not be nested in a button');
   }
 }
-assert.match(render('en'), /<button\b(?=[^>]*aria-label="Enable smart-continue globally")(?=[^>]*aria-checked="true")/);
+assert.match(render('en'), /<button\b(?=[^>]*aria-label="Enable until-done globally")(?=[^>]*aria-checked="true")/);
 assert.match(render('en'), /<select[^>]*aria-label="Default session mode"/);
 assert.match(render('en'), /<button\b(?=[^>]*aria-label="Send continue messages with plugin source")(?=[^>]*aria-checked="false")/, 'source switch defaults to legacy user messages');
 face.edit('usePluginSource', 'true');
 assert.match(render('en'), /<button\b(?=[^>]*aria-label="Send continue messages with plugin source")(?=[^>]*aria-checked="true")/, 'source switch stages plugin messages');
 face.discard();
 face.edit('paused', 'true');
-assert.match(render('en'), /<button\b(?=[^>]*aria-label="Enable smart-continue globally")(?=[^>]*aria-checked="false")/, 'positive switch correctly stages the inverse paused setting');
+assert.match(render('en'), /<button\b(?=[^>]*aria-label="Enable until-done globally")(?=[^>]*aria-checked="false")/, 'positive switch correctly stages the inverse paused setting');
 face.discard();
 
 const expected = Object.entries(face.hooks.autoContinueSettingsCard.getSnapshot())

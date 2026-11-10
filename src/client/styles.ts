@@ -1,5 +1,5 @@
 /**
- * Styles for the smart-continue settings card, injected at factory
+ * Styles for the until-done settings card, injected at factory
  * materialization so the client module system's style bookkeeping (HMR) owns
  * them. Uses the DSH design tokens (`--dsw-alias-*`) so the card follows the
  * active theme.
@@ -51,7 +51,7 @@ const css = `
   --dsh-ac-line: var(--dsw-alias-border-l2);
   --dsh-ac-text: var(--dsw-alias-label-primary);
   --dsh-ac-muted: var(--dsw-alias-label-tertiary);
-  container: smart-continue-settings / inline-size;
+  container: until-done-settings / inline-size;
   color: var(--dsh-ac-text);
   font: inherit;
   font-size: 13px;
@@ -132,12 +132,12 @@ const css = `
 .dshAcPauseList li { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
 .dshAcPauseId { flex: 1; font: 12px ui-monospace, SFMono-Regular, monospace; }
 .dshAcRecovery { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
-@container smart-continue-settings (max-width: 760px) {
+@container until-done-settings (max-width: 760px) {
   .dshAcLayout { grid-template-columns: 136px minmax(0, 1fr); }
   .dshAcCategory { padding-left: 20px; }
   .dshAcFieldControl { flex-direction: column-reverse; align-items: flex-end; gap: 6px; }
 }
-@container smart-continue-settings (max-width: 560px) {
+@container until-done-settings (max-width: 560px) {
   .dshAcLayout { display: block; min-height: 0; }
   .dshAcNav { flex-direction: row; overflow-x: auto; position: static; padding: 12px 0; border-bottom: 1px solid var(--dsh-ac-line); }
   .dshAcNav > button { flex: none; font-size: 12px; min-height: 34px; padding: 7px 10px; }
@@ -172,10 +172,10 @@ const css = `
 /** Inject the stylesheet once; a no-op outside a browser environment. */
 export function injectStyles(): void {
   if (typeof document === 'undefined') return;
-  if (document.querySelector('style[data-plugin-css="smart-continue/card"]') !== null) return;
+  if (document.querySelector('style[data-plugin-css="until-done/card"]') !== null) return;
   const tag = document.createElement('style');
-  tag.dataset.plugin = 'dsh-smart-continue';
-  tag.dataset.pluginCss = 'smart-continue/card';
+  tag.dataset.plugin = 'dsh-until-done';
+  tag.dataset.pluginCss = 'until-done/card';
   tag.textContent = css;
   document.head.appendChild(tag);
 }

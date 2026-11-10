@@ -1,5 +1,5 @@
 {
-  "name": "dsh-smart-continue",
+  "name": "dsh-until-done",
   "description": "DSH 插件：模型正常结束但任务没做完时自动续跑；用结尾暗号判定真正完成，并细分限流、上游错误与工具失败。",
   "version": "1.0.0",
   "type": "module",
@@ -57,15 +57,15 @@
     "deepseek-harness",
     "plugin",
     "web-ui",
-    "smart-continue",
+    "until-done",
     "auto-continue",
     "task-completion"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KunKun24/dsh-smart-continue.git"
+    "url": "git+https://github.com/KunKun24/dsh-until-done.git"
   },
-  "homepage": "https://github.com/KunKun24/dsh-smart-continue#readme",
+  "homepage": "https://github.com/KunKun24/dsh-until-done#readme",
   "devDependencies": {
     "esbuild": "^0.25.0",
     "typescript": "~5.8.0",
@@ -106,7 +106,7 @@
     "url": "https://github.com/KunKun24"
   },
   "bugs": {
-    "url": "https://github.com/KunKun24/dsh-smart-continue/issues"
+    "url": "https://github.com/KunKun24/dsh-until-done/issues"
   },
   "engines": {
     "node": ">=22.13.0"
