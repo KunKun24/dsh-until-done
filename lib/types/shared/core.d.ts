@@ -1,0 +1,441 @@
+/** 共享核心: 平台无关的纯逻辑与类型。
+ *
+ * 被 host 引擎(src/host/engine.ts)与浏览器半侧共用: 配置解析、错误分类、
+ * 模板填充、自适应退避、幂等护栏的工具结果提取、循环守卫的会话状态机,
+ * 以及回显识别。引擎迁入 host 后(0.8.0), 浏览器半侧只 re-export 本模块。
+ */
+import type { SessionEvent } from '@deepseek-ai/dsh-session/types';
+export declare const AUTO_CONTINUE_SOURCE_KIND = "plugin:dsh-smart-continue";
+declare module '@deepseek-ai/dsh-llm' {
+    interface MessageSourceMap {
+        'plugin:dsh-smart-continue': {
+            kind: typeof AUTO_CONTINUE_SOURCE_KIND;
+        };
+    }
+}
+/** Supported UI/config locales; missing and unsupported values use English. */
+export type AutoContinueLocale = 'en' | 'zh';
+export declare function resolveLocale(locale: unknown): AutoContinueLocale;
+export type SessionMode = 'default' | 'off' | 'recover' | 'loop';
+export interface SessionPolicy {
+    modes: Record<string, SessionMode>;
+    defaultMode: 'recover' | 'loop';
+    paused: boolean;
+    writable: boolean;
+}
+export declare const isSessionMode: (value: unknown) => value is SessionMode;
+export declare function sessionMode(modes: Record<string, SessionMode>, sessionId: string): SessionMode;
+/** Locale-owned defaults for the user-editable text fields. */
+export declare const LOCALIZED_TEXT_DEFAULTS: {
+    readonly zh: {
+        readonly continueText: "继续";
+        readonly continueTextMaxTokens: "继续";
+        readonly continueTextSilent: "继续。你上一轮只输出了内部推理, 既没有回复也没有调用工具, 用户什么都没看到。每一轮都要以工具调用或可见回复结束。";
+        readonly continueTextLoop: "继续";
+        readonly continueTextInterrupted: "继续。宿主在你上一轮运行期间重启了; 重启时未完成的工具调用已按「结果未知」收尾。从中断处继续, 重试可能有副作用的操作前先核实外部状态。";
+        readonly guardPendingText: "(上一步工具「{tool}」可能未完成, 先确认状态再继续, 不要重复执行)";
+        readonly guardDoneText: "(上一步工具「{tool}」已完成, 结果: {result}; 不要重复执行, 直接继续)";
+        readonly loopText: "(检测到你可能陷入循环, 请停止重复刚才的动作, 换一种方式继续)";
+        readonly completionHint: "任务收尾约定: 只有当你确认用户的整个请求已经全部完成、结果可以直接交付时, 才在回复的最后单独写上「{keyword}」; 任务还没做完就绝对不要写, 继续把剩下的步骤做完。";
+        readonly continueTextToolError: "继续。上一步工具「{tool}」执行失败: {result}。先判断失败原因: 能修的就修好后重试, 不能修的就换一种做法; 不要把失败当成任务完成。";
+        readonly continueTextRateLimit: "继续。刚才的请求被上游限流(HTTP {status} / {code})。缩小单步改动, 稍等片刻后继续, 不要重复发送同一请求。";
+        readonly continueTextServer: "继续。上游服务返回错误({code} / HTTP {status})。把上一步拆小重试, 仍然失败就换一条路继续完成任务。";
+    };
+    readonly en: {
+        readonly continueText: "Continue";
+        readonly continueTextMaxTokens: "Continue";
+        readonly continueTextSilent: "Continue. Your previous turn ended with internal reasoning only, with no message and no tool call, so nothing reached the user. Always finish a turn with a tool call or a visible answer.";
+        readonly continueTextLoop: "Continue";
+        readonly continueTextInterrupted: "Continue. The harness was restarted while your previous turn was still running; tool calls pending at the restart are recorded with unknown outcomes. Resume where you left off, verifying external state before retrying anything that may have side effects.";
+        readonly guardPendingText: "(The previous tool \"{tool}\" may not have completed. Check its state before continuing and do not run it again.)";
+        readonly guardDoneText: "(The previous tool \"{tool}\" completed successfully. Result: {result}; do not run it again. Continue from there.)";
+        readonly loopText: "(You may be stuck in a loop. Stop repeating the last action and continue with a different approach.)";
+        readonly completionHint: "Task completion rule: only when you are sure the entire request is fully done and the result is ready to hand over, end your reply with the single word \"{keyword}\". If anything is still unfinished, do not write it — keep working through the remaining steps.";
+        readonly continueTextToolError: "Continue. The previous tool \"{tool}\" failed: {result}. Diagnose the cause first: fix it and retry when possible, otherwise choose another approach. Do not treat the failure as completion.";
+        readonly continueTextRateLimit: "Continue. The last request was rate limited (HTTP {status} / {code}). Take a smaller step, wait a moment, and continue without resending the same request.";
+        readonly continueTextServer: "Continue. The upstream service returned an error ({code} / HTTP {status}). Retry the last step in smaller pieces, and switch approaches if it keeps failing.";
+    };
+};
+/** The `smart-continue` settings section (all fields optional on the wire; the host schema carries defaults). */
+export interface AutoContinueSettings {
+    /** Active browser/UI locale mirrored by the client. */
+    locale?: AutoContinueLocale;
+    /** Send continue messages with the plugin source instead of the legacy user source. */
+    usePluginSource?: boolean;
+    /** Text automatically sent after an interruption. */
+    continueText?: string;
+    /** Text sent when the output token ceiling is reached (same placeholders as `continueText`). */
+    continueTextMaxTokens?: string;
+    /** Resume observed model activity that completes without visible output. */
+    resumeSilentTurns?: boolean;
+    /** Autonomous mode: hand the thread back to the agent after every completed turn, looping until the user stops it. The consecutive-failure cap only throttles failures, never successful completions. */
+    resumeCompletedTurns?: boolean;
+    /** Text sent to resume a silent turn (same placeholders as `continueText`). */
+    continueTextSilent?: string;
+    /** Text sent for each autonomous-loop continuation (same placeholders as `continueText`). */
+    continueTextLoop?: string;
+    /** Text sent when a turn is recovered after a harness restart closed it as interrupted. */
+    continueTextInterrupted?: string;
+    /** Idempotency guard: inspect the last tool call before resuming and steer the model. */
+    guardTools?: boolean;
+    /** Guard text appended when the last tool call has no confirmed result (it may have partially executed). */
+    guardPendingText?: string;
+    /** Guard text appended when the last tool call completed successfully (don't rerun it). */
+    guardDoneText?: string;
+    /** Grace period after an interruption before auto-sending (ms). */
+    graceMs?: number;
+    /** Minimum interval between two smart-continues per session (ms). */
+    cooldownMs?: number;
+    /** Max consecutive smart-continues per session before stopping. */
+    maxConsecutive?: number;
+    /** Recover delayed interrupted sessions during the host startup window. */
+    scanOnBoot?: boolean;
+    /** Max eligible recoveries per scan pass (most recently active first). */
+    scanLimit?: number;
+    /** Interruption freshness and duration of startup polling (ms). */
+    freshMs?: number;
+    /** Log `[smart-continue]` lines to the browser console. */
+    verbose?: boolean;
+    /** Classify failures: smart-continue transient errors only; permanent ones (auth/balance/model) are skipped and notified. */
+    classify?: boolean;
+    /** Provider-specific message/code/status fragments that explicitly count as retryable, one literal per line. */
+    retryableErrorPatterns?: string;
+    /** Cooldown multiplier per consecutive failure (adaptive backoff). */
+    backoffFactor?: number;
+    /** Cap on the effective backoff interval (ms). */
+    backoffMaxMs?: number;
+    /** Show browser notifications for smart-continue events. */
+    notify?: boolean;
+    /** Globally pause smart-continue: no live or scan send, queued pending sends cancelled. */
+    paused?: boolean;
+    /** Persistent per-session overrides; default explicitly inherits the profile default. */
+    sessionModes?: Record<string, SessionMode>;
+    /** Show the session mode selector in the conversation composer. */
+    showComposerToggle?: boolean;
+    /** Loop guard: detect a running turn spinning in place (short talk without tools, or the same tool repeating) and restart it. */
+    loopGuard?: boolean;
+    /** A model message shorter than this many chars counts as a "short sentence" (loop signal). */
+    loopShortChars?: number;
+    /** Consecutive short sentences within this window (ms) with no tool call in between trip the loop guard. */
+    loopWindowMs?: number;
+    /** Consecutive short sentences trip the loop guard. */
+    loopShortCount?: number;
+    /** Consecutive identical tool calls with identical arguments AND identical results trip the loop guard. */
+    loopToolRepeat?: number;
+    /** Consecutive identical assistant messages trip the loop guard (strongest signal; also used for streamed intra-message repetition). */
+    loopRepeatText?: number;
+    /** Text sent after the loop guard cancels and restarts a turn (supports {tool}). */
+    loopText?: string;
+    /** Recover child (subagent / Agent Teams) sessions that a restart interrupted by waking their root session once. */
+    resumeInterruptedChildren?: boolean;
+    /** Re-arm a goal that a restart left `active` but `disarmed`, when its own session is resumed. */
+    resumeGoals?: boolean;
+    /** Also resume goals the user explicitly paused. Off by default: pausing is a human decision. */
+    resumePausedGoals?: boolean;
+    /** Hold network-error recoveries while the host is offline; waiting does not consume the retry budget. */
+    pauseWhenOffline?: boolean;
+    /** How often (ms) a held recovery re-checks connectivity. */
+    offlineCheckMs?: number;
+    /** Autonomous-loop round cap per session; 0 means unlimited. Resets when the user sends a message or turns the loop back on. */
+    loopMaxIterations?: number;
+    /** Smart-continue: a completed turn keeps working unless the model closes with the completion keyword. */
+    requireCompletion?: boolean;
+    /** Completion keyword the model must end with when the task is truly done (default 「完成」). */
+    completionKeyword?: string;
+    /** Inject the completion rule into the system prompt so the model knows it from the first turn. */
+    completionHintEnabled?: boolean;
+    /** Completion rule text; `{keyword}` is replaced with `completionKeyword`. */
+    completionHint?: string;
+    /** Only continue completed turns that did real work (a tool call or an active goal), leaving plain chat answers alone. */
+    continueOnlyWithWork?: boolean;
+    /** Appended when the previous tool call failed (placeholders: {tool}, {message}). */
+    continueTextToolError?: string;
+    /** Appended when the failure was a rate limit (429). */
+    continueTextRateLimit?: string;
+    /** Appended when the failure was an upstream/server error (5xx). */
+    continueTextServer?: string;
+}
+/** Fully resolved configuration (built-in defaults + user overrides). */
+export type AutoContinueConfig = Required<AutoContinueSettings>;
+/** Effective built-in defaults; localized text fields use English until a browser locale is mirrored. */
+export declare const DEFAULT_CONFIG: AutoContinueConfig;
+/** Resolve a (possibly partial / not-yet-loaded) settings section to a full config. */
+export declare function resolveConfig(section: AutoContinueSettings | undefined): AutoContinueConfig;
+/**
+ * 视为「非人为中断」的回合结束原因, 用于启动/重连扫描。
+ * - `interrupted` 只由崩溃修复在宿主重载时写入(loop 永不实时发出), 因此仅在扫描路径处理;
+ * - 实时事件路径只对 `error` / `max-tokens` 自动续跑; 另外续跑没有可见输出的 `completed` / `no-visible-output` 回合(不属于本类型);
+ * - `aborted`(用户停止)与 `blocked`(策略拒绝)永不自动继续。
+ */
+type NonHumanReason = 'error' | 'interrupted' | 'max-tokens';
+export declare function isNonHumanReason(kind: string): kind is NonHumanReason;
+/** 一次回合失败的机器可读事实(turn/end error 的 LlmFailure 载荷)。 */
+export interface FailureFacts {
+    /** 稳定机器路由码(如 UPSTREAM、RATE_LIMIT_EXCEEDED、INVALID_API_KEY)。 */
+    code: string;
+    /** 人类可读的失败描述。 */
+    message: string;
+    /** 供应商 HTTP 状态码(可用时)。 */
+    status?: number;
+}
+/**
+ * 错误分类: 该失败是否值得自动继续。
+ * 用户填写的 provider 专属文本片段优先覆盖内置结果; 未命中时,
+ * 永久性失败(认证/余额/模型不存在/上下文超限等)重试也不会成功, 应跳过并通知用户;
+ * 其余(网络、超时、5xx、429 等)视为临时性失败, 允许自动恢复。
+ */
+export declare function isTransientFailure(failure: FailureFacts, retryableErrorPatterns?: string): boolean;
+/**
+ * host/agent-error 消息分类: 仅明确属于网络/传输类的临时错误才自动继续。
+ * 其余(序列化失败、配置/宿主内部错误等)视为永久性——重试无益, 且用户停止导致的
+ * 序列化失败(如 Windows 下 abort 的 DOMException reason)绝不能自动续跑。
+ */
+export declare function isTransientAgentError(message: string): boolean;
+/**
+ * 失败是否属于连接层(断网/DNS/连接被拒/传输超时)。只有这类失败值得先做连通性
+ * 检测: 断网时续跑必然再失败一次, 白白消耗连续上限。5xx/429 等服务端错误不在此列。
+ */
+export declare function isNetworkFailure(failure: FailureFacts): boolean;
+/**
+ * 一条助手回复是否以「完成」暗号收尾。
+ * 容忍尾部标点/空白/引号/星号, 以及不可见格式字符; 关键字为空时永不匹配。
+ */
+export declare function endsWithCompletion(text: string, keyword: string): boolean;
+/** 把收尾约定文本里的 `{keyword}` 换成实际暗号。 */
+export declare function fillCompletionHint(hint: string, keyword: string): string;
+/** 通知上的一个操作按钮(action 标识 + 显示文案)。 */
+export interface NotifyAction {
+    /** 稳定动作标识, 点击时经 onAction 回调传出。 */
+    action: string;
+    /** 按钮显示文案。 */
+    title: string;
+}
+/** 通知的可选行为: 操作按钮列表与点击回调。 */
+export interface NotifyOptions {
+    actions?: NotifyAction[];
+    onAction?: (action: string) => void;
+}
+/** 模板填充所需的上下文(全部可选, 缺失的占位符填为空串)。 */
+export interface TemplateContext {
+    /** 失败事实(错误码/消息/HTTP 状态), 对应 {code}/{message}/{status}。 */
+    facts?: FailureFacts;
+    /** 失败前最后一次工具调用的名称, 对应 {tool}。 */
+    tool?: string;
+    /** 失败回合的编号, 对应 {turn}。 */
+    turn?: number;
+    /** 连续失败次数(含本次), 对应 {errorCount}。 */
+    errorCount?: number;
+    /** 会话标题(来自 session.list 投影, 可用时), 对应 {sessionTitle}。 */
+    sessionTitle?: string;
+    /** 自失败发生以来的毫秒数, 对应 {elapsed}。 */
+    elapsedMs?: number;
+    /** 上一步工具结果摘要(截断), 对应 {result}(护栏模板用)。 */
+    result?: string;
+}
+/** 用失败事实与回合信息填充 continueText 模板占位符({code}/{message}/{status}/{tool}/{turn}/{errorCount}/{sessionTitle}/{elapsed}/{result})。 */
+export declare function fillTemplate(template: string, ctx: TemplateContext): string;
+/** 上一步工具调用的判定结果: 是否已确认完成, 以及文本摘要。 */
+export interface ToolResultFacts {
+    /** 工具是否成功完成(内部失败或 isError 视为未成功)。 */
+    ok: boolean;
+    /** 工具输出的文本摘要(截断)。 */
+    excerpt: string;
+    /** 完整模型可见内容 + 错误状态的定长稳定指纹(loop guard 比较用)。 */
+    identity: string;
+}
+interface ToolResultData {
+    turn?: unknown;
+    step?: unknown;
+    error?: {
+        name?: string;
+        code?: string;
+    };
+    message?: {
+        source?: {
+            kind?: string;
+            callId?: unknown;
+        };
+        content?: Array<{
+            type?: string;
+            toolCallId?: unknown;
+            content?: unknown;
+            isError?: boolean;
+        }>;
+    };
+}
+/**
+ * 取工具结果的关联 id。新版 DSH 的权威位置是 message.source.callId，
+ * 同时接受模型可见 block 上的 toolCallId；两者冲突时宁可忽略，不猜测配对。
+ */
+export declare function toolResultCallId(data: ToolResultData): string | undefined;
+/** 从 tool/result 事件载荷提取成功与否与文本摘要。 */
+export declare function toolResultFacts(data: ToolResultData): ToolResultFacts;
+/** loop guard 在后续 step 边界确认的连续重复信号。 */
+export interface ToolRepeatSignal {
+    tool: string;
+    count: number;
+}
+export type ToolGuardState = {
+    kind: 'none';
+} | {
+    kind: 'pending';
+    tool: string;
+} | {
+    kind: 'done';
+    tool: string;
+    result: string;
+} | {
+    kind: 'failed';
+    tool: string;
+    result?: string;
+};
+/**
+ * 每个会话的工具调用关联器。
+ *
+ * 集中封装事件关联、step 边界确认、护栏读取与重置。内部按 callId 配对，
+ * 乱序结果先缓存、再按调用顺序推进 loop 计数。队列和去重 id 都有硬上限；
+ * 超限或载荷无法关联时会打断重复计数，宁可漏报也不误杀健康回合。
+ */
+export declare class ToolInvocationTracker {
+    private readonly pendingById;
+    private readonly pendingInOrder;
+    private readonly seenCalls;
+    private readonly seenInOrder;
+    private latest;
+    private run;
+    private repeatSignal;
+    private lastEventSeq;
+    reset(): void;
+    /** 新回合边界：清空工具态，同时把重放水位推进到 turn/start。 */
+    startTurn(seq: number): void;
+    /** 回合已结束：保留最后一次调用的护栏，丢弃不再可用的 loop 关联态。 */
+    resetRepeat(): void;
+    recordCall(event: SessionEvent<'tool/call'>): boolean;
+    recordResult(event: SessionEvent<'tool/result'>): ToolRepeatSignal | undefined;
+    guard(): ToolGuardState;
+    lastTool(): string | undefined;
+    /** 下一模型 step 是稳定边界；此前 replacement/新调用会先清除候选。 */
+    confirmRepeatAtStep(seq: number): ToolRepeatSignal | undefined;
+    /** 非工具 surface range replacement（如 compaction summary）同样终止旧工具证据。 */
+    recordSurfaceReplacement(seq: number): void;
+    restore(events: readonly SessionEvent[], untilSeq: number): void;
+    private acceptEventSeq;
+    private breakCorrelation;
+    private invalidateRunHistory;
+    private trim;
+    private drainCompleted;
+    private advanceRun;
+    private refreshRepeatSignal;
+}
+/** 自适应退避: 同一会话连续失败时的有效冷却间隔。 */
+export declare function effectiveCooldown(consecutive: number, base: number, factor: number, max: number): number;
+export declare function sleep(ms: number): Promise<void>;
+/** A sent recovery prompt, not proof that the following turn succeeded. */
+export interface RecoveryAttempt {
+    sessionId: string;
+    at: number;
+    reason: 'error' | 'max-tokens' | 'silent' | 'interrupted' | 'loop-guard' | 'manual';
+    consecutive: number;
+}
+/** 一天的自动继续统计(host 单实例内存态)。 */
+export interface DayStats {
+    /** 本地日期 YYYY-MM-DD。 */
+    date: string;
+    /** 自动发送次数。 */
+    sent: number;
+    /** 因永久性错误跳过的次数。 */
+    skipped: number;
+    /** 发送后回合成功完成(恢复成功)的次数。 */
+    recovered: number;
+    /** 发送后再次失败的次数。 */
+    failed: number;
+    /** 达到连续上限而停止的次数(按停止事件计)。 */
+    gaveUp: number;
+    /** loop guard 打断并重启回合的次数。 */
+    looped: number;
+    /** 按错误码计数的失败分布。 */
+    byCode: Record<string, number>;
+}
+export declare function todayKey(): string;
+/** 空统计桶。 */
+export declare function emptyDayStats(): DayStats;
+/** 每会话运行时状态。 */
+export interface SessionState {
+    /** 连续自动「继续」次数; 成功回合或用户手动介入后归零。 */
+    consecutive: number;
+    /** 上次自动「继续」尝试(成功或失败)时间戳; 防止失败场景下的快速重试循环。 */
+    lastAttemptAt: number;
+    /** 尚未回显到会话事件流的自动发送消息 ID。 */
+    pendingEchoMessageIds: Map<string, number>;
+    /** 宽限期定时器(进行中的待发送)。 */
+    pendingTimer: ReturnType<typeof setTimeout> | undefined;
+    pendingReason?: string;
+    /** 宿主权威 running 位(来自 host/session-status 与回合事件)。 */
+    running: boolean | undefined;
+    /** 当前排队消息数(来自 session/queue 帧)。 */
+    queued: number;
+    /** 子代理会话(session header origin is `subagent`). */
+    subagent: boolean;
+    /** 最近一次回合失败的事实(用于分类与模板填充)。 */
+    lastFailure: FailureFacts | undefined;
+    /** 最近一次失败的发生时间(模板 {elapsed} 与恢复统计用)。 */
+    lastFailureAt: number;
+    /** callId 精确配对的工具调用、幂等护栏与 loop 重复态。 */
+    tools: ToolInvocationTracker;
+    /** 失败回合的编号(模板 {turn})。 */
+    lastTurn: number | undefined;
+    /** 我们最近一次自动发送的时间戳; 0 = 没有待确认的恢复。 */
+    pendingRecoveryAt: number;
+    /** unknown: no observed start; empty: no model activity; silent: activity without visible output. */
+    turnOutput: 'unknown' | 'empty' | 'silent' | 'visible';
+    outputTurn: number | undefined;
+    outputStartSeq: number;
+    /** message-ops maintenance window, which must not enter model recovery or loop accounting. */
+    maintenanceTurn?: number;
+    /** 当前连续短句数(loop guard 信号 1: 空转)。 */
+    shortRun: number;
+    /** 最后一条短句的时间(时间窗判定用)。 */
+    lastShortAt: number;
+    /** 最后一条模型消息的文本(相同文本重复判定用)。 */
+    lastAssistantText: string;
+    /** 连续相同文本消息数(最强空转信号, 不限长度)。 */
+    sameTextRun: number;
+    /** 流式消息尚未闭合的有界尾段(assistant/chunk 增量分段检测用)。 */
+    streamTail: string;
+    /** 流式消息最近一个长段的归一化文本。 */
+    streamLastSegment: string;
+    /** 流式消息内连续近似重复长段计数。 */
+    streamRepeatRun: number;
+    /** 本回合已触发过 loop guard(防重复打断)。 */
+    loopFired: boolean;
+    /** loop 重启的延迟定时器(冷却结束后再 schedule)。 */
+    loopRetryTimer: ReturnType<typeof setTimeout> | undefined;
+    /** 冷却期恢复的延迟定时器(等到冷却结束再 schedule, 而不是丢弃这次恢复)。 */
+    cooldownRetryTimer: ReturnType<typeof setTimeout> | undefined;
+    /** 断网挂起: 进行中的连通性检测令牌(取消时置空, 迟到的检测结果据此作废)。 */
+    offlineWait: object | undefined;
+    /** 断网挂起: 下一次连通性复检的定时器。 */
+    offlineTimer: ReturnType<typeof setTimeout> | undefined;
+    /** 本次断网挂起开始的时间; 0 = 未挂起(只在挂起开始/结束时各记一次日志)。 */
+    offlineSince: number;
+    /** 自主循环已续跑的轮数(用户发消息或重新开启循环时清零)。 */
+    loopIterations: number;
+    /** 本轮循环上限提示已发出(每次触顶只提示一次)。 */
+    loopCapNotified: boolean;
+    /** 上次观察到的循环开关; 由关到开时清零轮数。 */
+    loopEnabled: boolean | undefined;
+    /** 本回合最后一条可见助手文本(任务完成暗号判定用); 纯工具调用消息会清空它。 */
+    turnFinalText: string;
+    /** 本回合是否出现过工具调用(判断「有实际工作」, 避免把普通问答也续跑)。 */
+    turnHadTool: boolean;
+}
+export declare const freshState: () => SessionState;
+export declare const RECOVERY_WINDOW_MS: number;
+export declare const ECHO_WINDOW_MS: number;
+/** Track an identified plugin message before handing it to the host queue. */
+export declare function trackPendingEcho(state: SessionState, messageId: string): void;
+/** Roll back tracking when the host rejects a queued message. */
+export declare function forgetPendingEcho(state: SessionState, messageId: string): void;
+/** Match and consume one plugin-owned `user/message` event by stable message ID. */
+export declare function isOurEcho(state: SessionState, event: SessionEvent): boolean;
+export {};

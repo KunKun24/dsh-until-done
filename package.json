@@ -1,0 +1,116 @@
+{
+  "name": "dsh-smart-continue",
+  "description": "DSH 插件：模型正常结束但任务没做完时自动续跑；用结尾暗号判定真正完成，并细分限流、上游错误与工具失败。",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "icon.png",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs && tsc -p tsconfig.build.json",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test:runtime": "node tests/settings-host-live.mjs 0.1.7 && node tests/settings-host-live.mjs 0.2.0 && node tests/settings-host-live.mjs 0.2.1 && node tests/profile-compatibility.mjs 0.2.0 && node tests/profile-compatibility.mjs 0.2.1 && node tests/client-settings-services.mjs 0.2.0 && node tests/client-settings-services.mjs 0.2.1 && node tests/boot-scan-host-live.mjs 0.2.0-rc.2 && node tests/boot-scan-host-live.mjs 0.2.1 && node tests/settings-host-live.mjs 0.2.1-rc.2 && node tests/profile-compatibility.mjs 0.2.1-rc.2 && node tests/boot-scan-restart-live.mjs && node tests/settings-host-live.mjs 0.2.1-rc.2 mixed && node tests/settings-migration.mjs",
+    "test": "node tests/echo-matching.mjs && node tests/boot-scan-stored-sweep.mjs && node tests/child-resume-scan.mjs && node tests/offline-and-loop-cap.mjs && node tests/loop-guard-progress.mjs && node tests/scan-on-boot.mjs && node tests/boot-scan-isolation.mjs && node tests/silent-turn-boundaries.mjs && node tests/autonomous-loop.mjs && node tests/session-modes.mjs && node tests/manual-resume-pauses.mjs && node tests/stats-freshness.mjs && node tests/failure-classification.mjs && node tests/smart-completion.mjs && node tests/simulate-host.mjs && node tests/settings-host-compat.mjs && node tests/simulate-client-loader.mjs && node tests/client-settings-services.mjs && node tests/client-settings-form.mjs && node tests/locale-mirror-bounded.mjs && node tests/settings-card-ui.mjs && node tests/settings-card-native.mjs && node tests/composer-toggle.mjs && node tests/settings-notifications.mjs && node tests/maintenance-turns.mjs",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "plugin",
+    "web-ui",
+    "smart-continue",
+    "auto-continue",
+    "task-completion"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KunKun24/dsh-smart-continue.git"
+  },
+  "homepage": "https://github.com/KunKun24/dsh-smart-continue#readme",
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "~5.8.0",
+    "@types/react": "~18.3.1",
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-client-connection": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-locale": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings-plugins": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-session": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-settings": "0.1.2-rc.1",
+    "@deepseek-ai/schemastery": "3.18.2",
+    "@types/node": "^22.0.0",
+    "yaml": "2.9.1",
+    "@deepseek-ai/dsh-agent": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-store": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-host-webserver": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
+    "react-dom": "^18.2.0"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.7 || ^0.1.7-0 || ^0.2.0-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-settings": {
+      "optional": true
+    }
+  },
+  "icon": "icon.svg",
+  "author": {
+    "name": "困困",
+    "url": "https://github.com/KunKun24"
+  },
+  "bugs": {
+    "url": "https://github.com/KunKun24/dsh-smart-continue/issues"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  }
+}

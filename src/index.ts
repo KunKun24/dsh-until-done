@@ -1,0 +1,353 @@
+/**
+ * Host half of the smart-continue plugin.
+ *
+ * - Configuration is this entry's own Loader config: `apply(ctx, config)`
+ *   injects it into the engine, where `resolveConfig` merges it with the
+ *   schema defaults (the browser half's settings card writes the same values).
+ * - Runs the single-instance smart-continue engine: listens to the session
+ *   event firehose, sends via `agent.followup`, cancels via `agent.cancel`.
+ * - Serves a status bridge the browser half subscribes to: notifications and
+ *   runtime state (stats / pauses), plus an action endpoint for notification
+ *   buttons.
+ */
+import type { Context } from '@deepseek-ai/cordis';
+import z from '@deepseek-ai/schemastery';
+import { AutoContinueRunner } from './host/engine.ts';
+import { LEGACY_SETTINGS_IMPORTED, migrateLegacySettings, type EntrySettings, type LiveEntrySettings } from './host/settings-migration.ts';
+import { isSessionMode, resolveConfig, type AutoContinueSettings } from './shared/core.ts';
+// Type-only: pulls the `ctx.webServer` Context augmentation.
+import type {} from '@deepseek-ai/dsh-host-webserver';
+import type {} from '@deepseek-ai/dsh-agent';
+import type {} from '@deepseek-ai/dsh-session';
+import type {} from '@deepseek-ai/dsh-settings';
+
+/** Settings namespace of the smart-continue plugin (lowercase kebab-case). */
+export const AUTO_CONTINUE_NS = 'smart-continue';
+
+/** Wire schema; blank localized text fields tell resolveConfig() to select the active locale's defaults. */
+const settingsFields = {
+  /** Active browser/UI locale mirrored by the client. */
+  locale: z.string().default('en'),
+  /** Send continue messages with the plugin source instead of the legacy user source. */
+  usePluginSource: z.boolean().default(false),
+  /** Text automatically sent after an interruption. */
+  continueText: z.string().default(''),
+  /** Text sent when the output token ceiling is reached (same placeholders as `continueText`). */
+  continueTextMaxTokens: z.string().default(''),
+  /** Resume observed model activity that completes without visible output. */
+  resumeSilentTurns: z.boolean().default(true),
+  /** Autonomous mode: hand the thread back to the agent after every completed turn, looping until the user stops it. The consecutive-failure cap only throttles failures, never successful completions. */
+  resumeCompletedTurns: z.boolean().default(false),
+  /** Text sent to resume a silent turn (same placeholders as `continueText`). */
+  continueTextSilent: z.string().default(''),
+  /** Text sent for each autonomous-loop continuation (same placeholders as `continueText`). */
+  continueTextLoop: z.string().default(''),
+  /** Text sent when a turn is recovered after a harness restart closed it as interrupted. */
+  continueTextInterrupted: z.string().default(''),
+  /** Idempotency guard: inspect the last tool call before resuming and steer the model. */
+  guardTools: z.boolean().default(true),
+  /** Guard text appended when the last tool call has no confirmed result (it may have partially executed). */
+  guardPendingText: z
+    .string()
+    .default(''),
+  /** Guard text appended when the last tool call completed successfully (don't rerun it). */
+  guardDoneText: z
+    .string()
+    .default(''),
+  /** Grace period after an interruption before auto-sending (ms). */
+  graceMs: z.natural().default(3000),
+  /** Minimum interval between two smart-continues per session (ms). */
+  cooldownMs: z.natural().default(20000),
+  /** Max consecutive smart-continues per session before stopping. */
+  maxConsecutive: z.natural().min(1).default(3),
+  /** Recover delayed interrupted sessions during the host startup window. */
+  scanOnBoot: z.boolean().default(true),
+  /** Max eligible recoveries per scan pass (most recently active first). */
+  scanLimit: z.natural().min(1).default(8),
+  /** Interruption freshness and duration of startup polling (ms). */
+  freshMs: z.natural().default(15 * 60 * 1000),
+  /** Log `[smart-continue]` lines to the browser console. */
+  verbose: z.boolean().default(true),
+  /** Classify failures: smart-continue transient errors only; permanent ones are skipped and notified. */
+  classify: z.boolean().default(true),
+  /** Provider-specific message/code/status fragments that explicitly count as retryable, one literal per line. */
+  retryableErrorPatterns: z.string().default(''),
+  /** Cooldown multiplier per consecutive failure (adaptive backoff). */
+  backoffFactor: z.natural().min(1).default(2),
+  /** Cap on the effective backoff interval (ms). */
+  backoffMaxMs: z.natural().default(300000),
+  /** Show browser notifications for smart-continue events. */
+  notify: z.boolean().default(false),
+  /** Globally pause smart-continue: no live or scan send. */
+  paused: z.boolean().default(false),
+  /** Persist choices by session, including an explicit return to the profile default. */
+  sessionModes: z.dict(z.union(['default', 'off', 'recover', 'loop'])).default({}).hidden(),
+  /** Show the session mode selector in the conversation composer. */
+  showComposerToggle: z.boolean().default(true),
+  /** Loop guard: detect a running turn spinning in place and restart it. */
+  loopGuard: z.boolean().default(true),
+  /** A model message shorter than this many chars counts as a short sentence (loop signal). */
+  loopShortChars: z.natural().min(1).default(40),
+  /** Consecutive short sentences within this window (ms) with no tool call in between trip the loop guard. */
+  loopWindowMs: z.natural().min(1000).default(30000),
+  /** Consecutive short sentences trip the loop guard. */
+  loopShortCount: z.natural().min(2).default(12),
+  /** Consecutive identical assistant messages trip the loop guard (strongest signal; also used for streamed intra-message repetition). */
+  loopRepeatText: z.natural().min(2).default(4),
+  /** Consecutive identical tool calls with identical arguments AND results trip the loop guard. */
+  loopToolRepeat: z.natural().min(2).default(5),
+  /** Text sent after the loop guard cancels and restarts a turn (supports {tool}). */
+  loopText: z
+    .string()
+    .default(''),
+  /** Recover child (subagent / Agent Teams) sessions a restart interrupted by waking their root session once. */
+  resumeInterruptedChildren: z.boolean().default(false),
+  /** Re-arm a goal a restart left `active` but `disarmed`, when its own session is resumed. */
+  resumeGoals: z.boolean().default(false),
+  /** Also resume goals the user explicitly paused. Off by default: pausing is a human decision. */
+  resumePausedGoals: z.boolean().default(false),
+  /** Hold network-error recoveries while the host is offline; waiting does not consume the retry budget. */
+  pauseWhenOffline: z.boolean().default(true),
+  /** How often (ms) a held recovery re-checks connectivity. */
+  offlineCheckMs: z.natural().min(1000).default(15000),
+  /** Autonomous-loop round cap per session; 0 means unlimited. */
+  loopMaxIterations: z.natural().default(0),
+  /** Smart-continue: a completed turn keeps working unless the model closes with the completion keyword. */
+  requireCompletion: z.boolean().default(true),
+  /** Completion keyword; blank selects the built-in default (「完成」 / "DONE"). */
+  completionKeyword: z.string().default(''),
+  /** Inject the completion rule into the system prompt. */
+  completionHintEnabled: z.boolean().default(true),
+  /** Completion rule text; `{keyword}` is replaced with the keyword. */
+  completionHint: z.string().default(''),
+  /** Continue completed turns only when they did real work (tool call or active goal). */
+  continueOnlyWithWork: z.boolean().default(false),
+  /** Appended when the previous tool call failed. */
+  continueTextToolError: z.string().default(''),
+  /** Appended when the failure was a rate limit (429). */
+  continueTextRateLimit: z.string().default(''),
+  /** Appended when the failure was an upstream/server error (5xx). */
+  continueTextServer: z.string().default(''),
+};
+export const AutoContinueSchema = z.object(settingsFields);
+
+/** Loader config is a live reference on DSH 0.1.7, and a plain object on older hosts. */
+export type AutoContinueEntryConfig = EntrySettings | LiveEntrySettings;
+
+// Keep the wire schema usable by legacy Settings while exposing the live root
+// to current Loaders. Older Schemastery releases do not have volatile().
+const entrySchema = z.object({
+  ...settingsFields,
+  [LEGACY_SETTINGS_IMPORTED]: z.boolean().default(false).hidden(),
+}) as typeof AutoContinueSchema & {
+  volatile?: () => z<AutoContinueSettings, AutoContinueEntryConfig>;
+};
+export const Config = entrySchema.volatile?.() ?? AutoContinueSchema;
+
+function entryConfig(config: AutoContinueEntryConfig | undefined): AutoContinueSettings | undefined {
+  return config !== undefined && 'get' in config ? config.get() : config;
+}
+
+/**
+ * Plugin body: start the single-instance engine and serve the status bridge.
+ *
+ * Configuration comes from this entry's own Loader config (merged with the
+ * schema defaults by `resolveConfig`); the current harness exposes entry
+ * config through the settings service instead of the legacy `register`/`get`
+ * namespace API this plugin was originally written against.
+ * @param ctx - host plugin context.
+ * @param config - this entry's config (may be partial / absent → defaults).
+ */
+export function apply(ctx: Context, config?: AutoContinueEntryConfig): void {
+  let legacyConfig: (() => AutoContinueSettings | undefined) | undefined;
+  const modern = config !== undefined && 'get' in config && typeof config.get === 'function';
+  const readEntry = modern
+    ? migrateLegacySettings(ctx, config, Object.keys(settingsFields), AutoContinueSchema)
+    : () => entryConfig(config);
+  // Settings is optional: it must never prevent the engine or bridge starting.
+  // Hosts predating Config-derived forms still own a separate settings document.
+  ctx.inject(['settings'], (settingsCtx) => {
+    const settings = (settingsCtx as unknown as { settings: {
+      register?: (ns: string, schema: typeof AutoContinueSchema, options: { applies: string }) => unknown;
+      get?: (ns: string) => AutoContinueSettings | undefined;
+    } }).settings;
+    // Some desktop hosts expose both APIs. A live Config already owns this
+    // namespace, so registering it again splits reads and writes across stores.
+    if (modern || typeof settings.register !== 'function' || typeof settings.get !== 'function') return;
+    settings.register(AUTO_CONTINUE_NS, AutoContinueSchema, { applies: 'live' });
+    const read = () => settings.get!(AUTO_CONTINUE_NS);
+    legacyConfig = read;
+    settingsCtx.effect(() => () => {
+      if (legacyConfig === read) legacyConfig = undefined;
+    });
+  });
+  // 引擎引用: inject 回调可能重入(依赖组合变化), 顶层 effect 在 fiber 卸载时必跑。
+  // dispose 绑定必须挂在 apply 的顶层 ctx 上——挂 inject 派生 ctx 的 effect 在 config HMR
+  // 替换行时不会执行, 悬空定时器会撞上 inactive context 炸掉整个进程。
+  let disposeEngine: (() => void) | undefined;
+  let promptRunner: { completionDirective(): string } | undefined;
+
+  // 收尾约定注入: 让模型从第一轮就知道「任务全部做完才写暗号」, 而不是等到
+  // 第一次自动续跑才被告知。文本是动态 provider, 跟随设置即时生效。
+  // 注册挂在 apply 顶层 ctx 上, 老宿主/测试桩没有 systemPrompt 服务时直接跳过。
+  ctx.inject(['systemPrompt'], (promptCtx) => {
+    const prompts = promptCtx.systemPrompt as
+      | { section?: (section: unknown) => unknown }
+      | undefined;
+    if (typeof prompts?.section !== 'function') return;
+    // `interpolate` 尚未出现在 devDependency 的 PromptSection 类型里, 但运行时支持。
+    prompts.section({
+      name: 'smart-continue-completion-rule',
+      order: 900,
+      interpolate: false,
+      text: () => promptRunner?.completionDirective() ?? '',
+    });
+  });
+
+  // 单实例引擎: host 进程内监听会话事件, 所有标签页共享同一个引擎。
+  ctx.inject(['agents', 'webServer'], (engineCtx) => {
+    // 回调重入时先清理旧引擎, 避免定时器与监听器叠加。
+    disposeEngine?.();
+    const readConfig = () => resolveConfig(legacyConfig?.() ?? readEntry());
+    const runner = new AutoContinueRunner(engineCtx, readConfig);
+    promptRunner = runner;
+    const writableSettings = () => {
+      const settings = engineCtx.get('settings');
+      return settings?.writable && typeof settings.mutate === 'function' ? settings : undefined;
+    };
+
+    // 状态桥: browser 侧订阅通知与运行时状态(SSE)。
+    const sseClients = new Set<(data: string) => void>();
+    const closeClients = new Set<() => void>();
+    const pushToAll = (data: string): void => {
+      for (const send of sseClients) {
+        try {
+          send(data);
+        } catch {
+          sseClients.delete(send);
+        }
+      }
+    };
+    const statePayload = (): string => {
+      const config = readConfig();
+      return JSON.stringify({
+        type: 'state',
+        stats: runner.todayStats(),
+        paused: runner.activePauses(),
+        recoveryAttempts: runner.recentRecoveryAttempts(),
+        sessionPolicy: {
+          modes: config.sessionModes,
+          defaultMode: config.resumeCompletedTurns ? 'loop' : 'recover',
+          paused: config.paused,
+          writable: writableSettings() !== undefined,
+        },
+      });
+    };
+
+    runner.subscribeNotices(() => {
+      for (const notice of runner.drainNotices()) {
+        pushToAll(`data: ${JSON.stringify({ type: 'notice', notice })}\n\n`);
+      }
+    });
+    runner.subscribeState(() => {
+      pushToAll(`data: ${statePayload()}\n\n`);
+    });
+    // Event names differ across the legacy Settings and live Config hosts.
+    const stopSettings = ['settings/updated', 'settings/document-updated', 'app-boot/config-reload'].map(event =>
+      (engineCtx.on as (event: string, listener: () => void) => () => void)(event, () => runner.configurationChanged()),
+    );
+
+    const stopBridge = engineCtx.webServer.register({
+      kind: 'exact',
+      path: '/api/smart-continue-bridge',
+      handler: (req, res) => {
+        res.writeHead(200, {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache',
+          connection: 'keep-alive',
+        });
+        res.write(`data: ${statePayload()}\n\n`);
+        const send = (data: string): void => {
+          res.write(data);
+        };
+        sseClients.add(send);
+        const close = () => { res.end(); };
+        closeClients.add(close);
+        req.on('close', () => {
+          sseClients.delete(send);
+          closeClients.delete(close);
+        });
+      },
+    });
+
+    // 通知按钮动作: browser 点击「立即续跑 / 暂停该会话」时 POST 到这里。
+    const stopActions = engineCtx.webServer.register({
+      kind: 'exact',
+      path: '/api/smart-continue-action',
+      handler: (req, res) => {
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString('utf8');
+          if (body.length > 4096) req.destroy();
+        });
+        req.on('end', async () => {
+          try {
+            const parsed = JSON.parse(body) as { sessionId?: string; action?: string; mode?: unknown };
+            if (parsed.action === 'set-session-mode') {
+              const { sessionId, mode } = parsed;
+              if (typeof sessionId !== 'string' || sessionId.trim() === '' || sessionId.length > 256 ||
+                  ['__proto__', 'prototype', 'constructor'].includes(sessionId) || !isSessionMode(mode)) {
+                throw new TypeError('Invalid session mode');
+              }
+              const settings = writableSettings();
+              if (settings === undefined) {
+                res.writeHead(503, { 'content-type': 'application/json' });
+                res.end(JSON.stringify({ ok: false }));
+                return;
+              }
+              // Path mutations preserve choices written concurrently by other tabs.
+              await settings.mutate(AUTO_CONTINUE_NS, [{ op: 'set', path: ['sessionModes', sessionId], value: mode }]);
+              runner.configurationChanged();
+              res.writeHead(200, { 'content-type': 'application/json' });
+              res.end(JSON.stringify({ ok: true, sessionId, mode }));
+              return;
+            }
+            if (typeof parsed.action === 'string') {
+              runner.handleNoticeAction((parsed.sessionId as never) ?? undefined, parsed.action);
+              res.writeHead(200, { 'content-type': 'application/json' });
+              res.end(JSON.stringify({ ok: true }));
+              return;
+            }
+            res.writeHead(400, { 'content-type': 'application/json' });
+            res.end(JSON.stringify({ ok: false }));
+          } catch {
+            res.writeHead(400, { 'content-type': 'application/json' });
+            res.end(JSON.stringify({ ok: false }));
+          }
+        });
+      },
+    });
+    let disposed = false;
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
+      runner.dispose();
+      for (const stop of stopSettings) stop();
+      stopBridge();
+      stopActions();
+      for (const close of closeClients) close();
+      closeClients.clear();
+      sseClients.clear();
+    };
+    disposeEngine = dispose;
+    engineCtx.effect(() => dispose);
+  });
+
+  // 顶层生命周期绑定: fiber 卸载时清理引擎(定时器/监听器)。
+  // 挂在 apply 的 ctx 上保证 Cordis 一定会调用, 防止 inactive context 崩溃。
+  ctx.effect(() => () => {
+    const dispose = disposeEngine;
+    disposeEngine = undefined;
+    dispose?.();
+  });
+}
