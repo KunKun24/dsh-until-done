@@ -23,4 +23,4 @@ jobs:
       - name: Publish tarball to the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" ./*.tgz --title "$GITHUB_REF_NAME" --notes-file CHANGELOG.md
+        run: gh release create "$GITHUB_REF_NAME" ./*.tgz --title "$GITHUB_REF_NAME" --notes-file CHANGELOG.md || gh release upload "$GITHUB_REF_NAME" ./*.tgz --clobber
