@@ -145,7 +145,7 @@ async function scenario(service, slot, { delayed = false } = {}) {
       ...face, view: 'page', t: (key) => dictionaries.en[key],
       useAutoContinueSettingsCard: (select) => select(state()),
     }));
-    assert.match(html, /Auto.Continue/i, 'the registered settings component renders');
+    assert.match(html, /smart-continue/i, 'the registered settings component renders');
     if (slot === 'plugins.bundle.config') assert.match(html, /^<ul\b/, 'bundle page owns the card list');
 
     face.edit('graceMs', '1234');

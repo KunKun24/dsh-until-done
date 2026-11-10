@@ -388,7 +388,8 @@ const FAST = {
 
 function startPlugin(overrides = {}) {
   const host = makeHost();
-  host.setConfig({ ...FAST, ...overrides });
+  // 这些用例验证的是「无输出回合的恢复」, 与自主循环无关: 固定为仅恢复模式。
+  host.setConfig({ ...FAST, resumeCompletedTurns: false, ...overrides });
   mod.apply(host.ctx, host.configValue());
   return host;
 }
@@ -1169,7 +1170,8 @@ for (const usePluginSource of [false, true]) {
   await sleep(200);
   host.emit(agent.session, turnEnd(3, { kind: 'error', error: { code: 'UPSTREAM', message: 'x' } }));
   await sleep(600);
-  check('failed 无护栏', agent.followups[2]?.content?.[0]?.text === '继续');
+  const failedText = agent.followups[2]?.content?.[0]?.text ?? '';
+  check('failed 带工具名与错误摘要', failedText.includes('bash') && failedText.includes('failed'));
   await sleep(50);
 }
 

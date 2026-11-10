@@ -135,7 +135,7 @@ for (const locale of ['en', 'zh']) {
   const html = render(locale);
   assert.doesNotMatch(html, /dshAcHeaderFrame/, 'the colored header banner stays removed');
   assert.match(html, /role="tablist"/);
-  assert.equal([...html.matchAll(/role="tab"/g)].length, 6);
+  assert.equal([...html.matchAll(/role="tab"/g)].length, 7);
   assert.match(html, /role="tabpanel"/);
   assert.doesNotMatch(html, /dshAcJourney|pv-switcher|pv-root/);
   for (const button of html.matchAll(/<button\b[\s\S]*?<\/button>/g)) {
@@ -155,7 +155,7 @@ face.discard();
 const expected = Object.entries(face.hooks.autoContinueSettingsCard.getSnapshot())
   .filter(([, value]) => value && typeof value === 'object' && 'text' in value).map(([key]) => key).sort();
 const visible = [];
-for (const category of ['general', 'recovery', 'startup', 'prompts', 'safety', 'status']) {
+for (const category of ['general', 'recovery', 'startup', 'completion', 'prompts', 'safety', 'status']) {
   activeCategory = category;
   for (const locale of ['en', 'zh']) {
     const html = render(locale);

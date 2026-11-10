@@ -112,7 +112,7 @@ function render(category) {
 
 const general = render('general');
 assert.match(general, /data-native-form/, 'hosts with primitives render the native SettingsForm');
-assert.match(general, /data-native-segmented[^>]*data-value="false"/, 'default mode uses the native segmented control');
+assert.match(general, /data-native-segmented[^>]*data-value="true"/, 'default mode uses the native segmented control');
 assert.match(general, /Autonomous loop/);
 assert.match(general, /role="switch"[^>]*aria-checked="false"[^>]*aria-label="Send continue messages with plugin source"/);
 face.edit('usePluginSource', 'true');
@@ -120,7 +120,7 @@ assert.match(render('general'), /role="switch"[^>]*aria-checked="true"[^>]*aria-
 face.discard();
 assert.doesNotMatch(general, /<select\b/, 'the native path has no OS select');
 assert.doesNotMatch(general, /dshAcField/, 'the native path does not render the legacy field rows');
-assert.match(general, /href="https:\/\/github\.com\/HsiangNianian\/dsh-smart-continue"/);
+assert.match(general, /href="https:\/\/github\.com\/KunKun24\/dsh-smart-continue"/);
 assert.match(general, /data-native-save[^>]*>Save</, 'the native form owns the save button');
 assert.ok((general.match(/role="switch"/g) ?? []).length >= 4, 'boolean fields use native switches');
 
@@ -130,6 +130,6 @@ assert.match(retry, /<textarea/);
 assert.match(retry, /role="switch"[^>]*aria-label="Classify errors"/);
 
 const prompts = render('prompts');
-assert.equal((prompts.match(/<textarea/g) ?? []).length, 8, 'prompt fields stay editable textareas');
+assert.equal((prompts.match(/<textarea/g) ?? []).length, 11, 'prompt fields stay editable textareas');
 
 console.log('native settings form: primitives, segmented mode, native fields, textareas and invite ✅');
