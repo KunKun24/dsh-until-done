@@ -161,6 +161,23 @@ function mountSettings(ctx: ClientContext, scope: SettingsScope<AutoContinueSett
     ),
   );
 
+  // The settings dialog's left navigation is a list of `settings.section`
+  // rows; `settings.plugin.item` alone only reaches the legacy plugin page, so
+  // without this row the plugin has no entry in 「更多设置」 at all.
+  ctx.slots.inject('settings.section', () =>
+    ctx.slots.register(
+      {
+        name: 'settings.section',
+        id: 'until-done',
+        order: 30,
+        label: () => ctx.locale.bind(NS)('nav.title'),
+        locale: NS,
+        inject: () => controller.inject(),
+      },
+      AutoContinueSettingsPage,
+    ),
+  );
+
   // Slot injection waits for the matching UI declaration. Keep the old
   // settings card and the new bundle page independent of service migration.
   ctx.slots.inject('settings.plugin.item', () =>

@@ -8,6 +8,7 @@ export declare const zh: {
     'notification.blocked': string;
     'notification.unsupported': string;
     'notification.failed': string;
+    'nav.title': string;
     'chrome.categories': string;
     'repo.star': string;
     'repo.link': string;

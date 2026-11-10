@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+### 修复
+
+- **设置里找不到入口**：此前只注册了 `settings.plugin.item`（旧版插件页的卡片席位）与 `plugins.bundle.config`（插件详情页），当前 DSH 的「更多设置」左栏是 `settings.section` 列表，所以插件装好后在设置里没有任何一条。现在补注册 `settings.section`（id `until-done`，order 30，标题「做完为止」/「Until Done」），设置页左栏点进去就是完整的分类设置页。
+
+### 其他
+
+- 新增文案键 `nav.title`，中英双语。
+
 ## 1.0.0
 
 基于上游 `dsh-auto-continue` 0.18.0 改造的独立插件，包名与设置命名空间改为 `dsh-until-done`。
