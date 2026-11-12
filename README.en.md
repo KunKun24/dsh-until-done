@@ -71,3 +71,9 @@ Layout: `src/host/engine.ts` (engine), `src/shared/core.ts` (settings, decisions
 ## License
 
 MIT. Original work Copyright (c) 2025 HsiangNianian; modifications Copyright (c) 2026 KunKun. See [LICENSE](./LICENSE).
+
+---
+
+## About AIGC
+
+> This project contains AIGC (AI-generated) content. AI shortened development time; every line of code was carefully reviewed.

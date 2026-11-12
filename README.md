@@ -71,3 +71,9 @@ npm run typecheck
 ## 许可
 
 MIT。原项目 Copyright (c) 2025 HsiangNianian；本衍生版修改部分 Copyright (c) 2026 KunKun。详见 [LICENSE](./LICENSE)。
+
+---
+
+## 关于 AIGC
+
+> 项目包含 AIGC 内容，AI 减少了开发时间；我们也认真审核了每一条代码。
