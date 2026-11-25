@@ -1,79 +1,86 @@
-# 做完为止 (dsh-until-done)
+# dsh-until-done · 做完为止
 
-[English](README.en.md) · DeepSeek Harness 插件 · MIT
+[**简体中文**](README.md) · [English](README.en.md)
 
-DSH 插件。模型把回合正常结束、但任务其实只做了一半时，自动发一条「继续」把它推回工作；只有回复以**完成暗号**收尾，才算真的做完、不再打扰。
+![version](https://img.shields.io/badge/version-1.2.0-blue)
+![license](https://img.shields.io/badge/license-MIT-2ea44f)
+![dsh](https://img.shields.io/badge/DSH-%E2%89%A50.2.0-6f42c1)
 
-基于 [HsiangNianian/dsh-auto-continue](https://github.com/HsiangNianian/dsh-auto-continue) 改造，保留其故障恢复、断网挂起、循环护栏等能力，重做了「任务完成」判定与失败分类。
+模型说“完成了”，但任务才做了一半 —— 让它自己接着干，直到真的收尾。
 
-## 这一版改了什么
+![输入框上方的「自动继续」开关](assets/demo.gif)
 
-- **完成暗号**：默认「完成」。开启后，`turn/end = completed` 不再一律收工——回复末尾没有暗号就继续跑，写了暗号才停。暗号可在设置里改；只认结尾，`完成之前还要跑测试` 这种不算。
-- **收尾约定注入系统提示词**：从第一轮就告诉模型规则（`order: 900`，`interpolate: false`），而不是等第一次自动续跑才说。文本可自定义，`{keyword}` 会替换成暗号。
-- **失败分类更细**：工具执行失败、429 限流、5xx 上游错误各有专属续跑文案；工具失败会带上工具名和错误摘要，明确要求「先判断原因、能修就修」，而不是把失败当完成。
-- **只续跑真在做事的回合**（可选）：普通问答（没调工具、没有进行中的目标）不自动续，避免「你好」被追着回复十轮。
-- 重命名为 `dsh-until-done`，设置命名空间、HTTP 路由、日志前缀、界面文案全部独立，可与原插件并存。
+> DeepSeek Harness（DSH）插件，需要 DSH 0.2.0 及以上。
+
+## 它做什么
+
+智能体常常在一轮结束时停下，留下半截活：测试没跑、文件没改完、报错没修。这个插件接管 `turn/end`，在回合正常结束但**回复末尾没有完成暗号**时，自动发一条「继续」把模型推回工作；写了暗号（默认「完成」）才真正结束。
+
+基于 [HsiangNianian/dsh-auto-continue](https://github.com/HsiangNianian/dsh-auto-continue) 改造，保留其故障恢复、断网挂起、循环护栏，重做了完成判定与失败分类。
+
+## 功能
+
+- **完成暗号**：只要最后一条助手回复不以暗号结尾，就继续；跳过带工具调用的中间消息，容忍尾部标点、引号、星号
+- **收尾约定注入系统提示词**：第一轮就告诉模型规则，不用等到第一次续跑
+- **失败分类续跑**：工具执行失败、429 限流、5xx 上游错误各有专属续跑文案，工具失败会带上工具名和错误摘要，要求先判断原因、能修就修
+- **只续跑真在做事的回合**：开启后普通问答（无工具、无进行中目标）不自动续，避免「你好」被追着回复十轮
+- **输入框开关**：底部「自动继续」胶囊一键开关，不用进设置页
+- **原有的重试与恢复**：等待时间、连续上限、退避、断网挂起、启动恢复、循环护栏、浏览器通知
 
 ## 安装
 
-```bash
-# 从 Release 装（推荐）
-dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.0.0/dsh-until-done-1.0.0.tgz
+**方式一：插件市场（推荐）**
 
-# 或从本地目录装（改源码时用）
+在 DSH 的「插件市场」里搜索 `dsh-until-done` 直接安装。
+
+**方式二：Release 包**
+
+```bash
+dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.2.0/dsh-until-done-1.2.0.tgz
+```
+
+**方式三：本地源码**
+
+```bash
 dsh plugin --profile web add link:/path/to/dsh-until-done
 ```
 
-装完重启 DSH，设置入口在左下角 **更多设置 → 插件 → 做完为止**。
+装完刷新页面，输入框上方出现「自动继续」开关。
 
-## 关键设置
+## 使用
+
+1. 输入框上方点「自动继续」打开（或 设置 → 插件 → 做完为止）
+2. 正常提任务；模型停在中途时插件自动续跑
+3. 任务结束时模型写「完成」，循环停止
+
+## 配置
+
+设置入口：左下角 **更多设置 → 插件 → 做完为止**。
 
 | 设置 | 默认 | 说明 |
 | --- | --- | --- |
-| 要求完成暗号 | 开 | 回复末尾没有暗号就视为没做完，自动继续 |
+| 要求完成暗号 | 开 | 末尾没有暗号就自动继续 |
 | 完成暗号 | `完成` | 建议用正常句子里不常出现的词 |
-| 把收尾约定写进系统提示词 | 开 | 第一轮就告诉模型规则 |
+| 把收尾约定写进系统提示词 | 开 | 第一轮就注入规则 |
 | 收尾约定文本 | 内置 | `{keyword}` 替换为暗号 |
-| 只续跑有实际动作的回合 | 关 | 开启后普通问答不再自动续 |
-| 工具失败时的继续文本 | 内置 | 支持 `{tool}` / `{result}` |
-| 限流时的继续文本 | 内置 | 支持 `{status}` / `{code}` |
-| 上游错误时的继续文本 | 内置 | 支持 `{code}` / `{status}` |
-| 自主循环（resumeCompletedTurns） | 关 | 开 = 每个正常结束的回合都续，直到暗号出现 |
+| 只续跑有实际动作的回合 | 关 | 开启后普通问答不自动续 |
+| 工具失败 / 限流 / 上游错误的继续文本 | 内置 | 支持 `{tool}` `{result}` `{status}` `{code}` |
+| 自主循环 | 关 | 开 = 每个正常结束回合都续，直到暗号出现 |
 
-原有的重试策略（等待时间、连续上限、退避、断网挂起、错误分类）、启动恢复、循环护栏、状态桥与浏览器通知保持不变。
+## 限制与注意
 
-## 判定逻辑
+- 会自动消耗 token：续跑次数受连续上限与循环护栏约束，但长任务仍可能变贵
+- 判定依赖暗号；换暗号后旧任务的回复不会命中
+- 与原插件 `dsh-auto-continue` 命名空间完全独立，可以并存
 
-```
-turn/end(completed)
-  └─ 自主循环开?
-       ├─ 否 → 老逻辑（只有可见输出时清理预算）
-       └─ 是 → 最后一条助手文本以暗号结尾?
-                ├─ 是 → 任务完成，清空循环计数，停
-                └─ 否 → （只续有动作的回合 已开 && 本回合无工具 && 无 active goal）
-                          ├─ 是 → 普通问答，停
-                          └─ 否 → 发送继续
-```
+## 数据与隐私
 
-「最后一条助手文本」会跳过带工具调用的消息（那不是最终答复），并容忍尾部标点、引号、星号与不可见格式字符。
+设置与运行状态保存在本机 profile 数据目录，不上传任何内容；不读取对话以外的数据。
 
-## 开发
+## 版本与作者
 
-```bash
-npm install
-npm run build     # esbuild + tsc → lib/
-npm test          # 含 tests/smart-completion.mjs
-npm run typecheck
-```
+- 当前版本 **1.2.0**（[更新日志](CHANGELOG.md)）
+- 作者：困困 · GitHub [@KunKun24](https://github.com/KunKun24) · Telegram [@sad1881](https://t.me/sad1881)
+- 许可证：[MIT](LICENSE)（衍生自 HsiangNianian/dsh-auto-continue，原项目 Copyright (c) 2025 HsiangNianian）
 
-目录：`src/host/engine.ts`（引擎）、`src/shared/core.ts`（设置/判定/模板）、`src/client/*`（设置卡片、输入框开关、状态桥）。
-
-## 许可
-
-MIT。原项目 Copyright (c) 2025 HsiangNianian；本衍生版修改部分 Copyright (c) 2026 KunKun。详见 [LICENSE](./LICENSE)。
-
----
-
-## 关于 AIGC
-
-> 项目包含 AIGC 内容，AI 减少了开发时间；我们也认真审核了每一条代码。
+包含 AIGC 辅助编写的内容，已逐行人工审阅并在真机验证。

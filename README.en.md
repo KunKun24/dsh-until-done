@@ -1,79 +1,86 @@
-# Until Done (dsh-until-done)
+# dsh-until-done · Run until actually done
 
-[中文](README.md) · DeepSeek Harness plugin · MIT
+[**简体中文**](README.md) · [English](README.en.md)
 
-A DSH plugin. When a turn ends normally but the task is only half done, it sends one more "continue" and pushes the model back to work. A reply counts as truly finished only when it closes with the **completion keyword**.
+![version](https://img.shields.io/badge/version-1.2.0-blue)
+![license](https://img.shields.io/badge/license-MIT-2ea44f)
+![dsh](https://img.shields.io/badge/DSH-%E2%89%A50.2.0-6f42c1)
 
-Forked from [HsiangNianian/dsh-auto-continue](https://github.com/HsiangNianian/dsh-auto-continue); recovery, offline pause and loop guards are kept, while completion detection and failure classification were reworked.
+The model says it is finished while the task is half-done — keep it working until it really wraps up.
 
-## What changed in this fork
+![The "auto-continue" switch above the composer](assets/demo.gif)
 
-- **Completion keyword** (default 「完成」). With it on, `turn/end = completed` no longer always means "stop": a reply that does not end with the keyword is continued, and only a reply that ends with it stops. The keyword is configurable; only the tail counts, so `完成之前还要跑测试` does not finish a task.
-- **Rule injected into the system prompt** (order 900, `interpolate: false`) so the model knows the rule from the first turn instead of learning it after the first auto-continue. The text is editable and `{keyword}` is replaced with the keyword.
-- **Finer failure classes**: tool failure, 429 rate limit and 5xx upstream errors each get their own continuation text. A tool failure names the tool and carries its error excerpt, and asks the model to diagnose before retrying instead of treating the failure as completion.
-- **Optional "real work only"** mode: a plain chat turn (no tool call, no active goal) is left alone, so "hi" is not answered ten times.
-- **Independent namespace**: contract namespace, HTTP routes, log prefix and UI copy all belong to `dsh-until-done`, so it can be installed beside the upstream plugin without clashing.
+> A DeepSeek Harness (DSH) plugin for DSH 0.2.0 or newer.
 
-## Install
+## What it does
+
+Agents often stop at the end of a turn with work left: tests not run, files not edited, errors not fixed. This plugin hooks `turn/end`: when a turn completes normally but the last assistant reply does not end with the completion keyword, it sends "continue" and pushes the model back to work. Only a reply ending with the keyword (default `完成`) counts as done.
+
+Based on [HsiangNianian/dsh-auto-continue](https://github.com/HsiangNianian/dsh-auto-continue), keeping its recovery, offline suspension and loop guards, with a rewritten completion check and failure classification.
+
+## Features
+
+- **Completion keyword**: keep going unless the last assistant reply ends with it; tool-call messages are skipped and trailing punctuation/quotes/asterisks are tolerated
+- **Wrap-up contract in the system prompt**: the rule is injected from the first turn
+- **Failure-aware continuations**: tool failures, 429 rate limits and 5xx upstream errors each get their own continuation text; tool failures name the tool and error summary and ask for a root-cause judgement
+- **Only continue turns that did work**: plain Q&A (no tools, no active goal) stops, so "hi" is not chased for ten rounds
+- **Composer switch**: the "自动继续" chip toggles it without opening settings
+- **Retry and recovery**: waits, consecutive caps, backoff, offline suspension, startup recovery, loop guards, browser notifications
+
+## Installation
+
+**Option 1 — plugin marketplace (recommended)**
+
+Search `dsh-until-done` in DSH's plugin marketplace.
+
+**Option 2 — release tarball**
 
 ```bash
-# from the release tarball (recommended)
-dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.0.0/dsh-until-done-1.0.0.tgz
+dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.2.0/dsh-until-done-1.2.0.tgz
+```
 
-# or from a local checkout while developing
+**Option 3 — local source**
+
+```bash
 dsh plugin --profile web add link:/path/to/dsh-until-done
 ```
 
-Restart DSH, then open **More settings → Plugins → Until Done** in the bottom-left corner.
+Reload the page; the "自动继续" chip appears above the composer.
 
-## Key settings
+## Usage
+
+1. Turn on "自动继续" above the composer (or Settings → Plugins → 做完为止)
+2. Give the task; the plugin continues when the model stops mid-way
+3. The loop ends once the model writes `完成`
+
+## Configuration
+
+Settings live under **More → Plugins → 做完为止**.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| Require completion keyword | on | A reply without the keyword counts as unfinished and is continued |
-| Completion keyword | `完成` | Prefer a word that rarely appears in normal prose |
-| Put the rule in the system prompt | on | Tell the model from the first turn |
-| Completion rule text | built-in | `{keyword}` is replaced with the keyword |
-| Only continue turns with real work | off | Plain chat then stops auto-continuing |
-| Continue text (tool failure) | built-in | Supports `{tool}` / `{result}` |
-| Continue text (rate limit) | built-in | Supports `{status}` / `{code}` |
-| Continue text (upstream error) | built-in | Supports `{code}` / `{status}` |
-| Autonomous loop | off | Every normally finished turn is continued until the keyword appears |
+| Require completion keyword | on | Continue when the reply lacks it |
+| Completion keyword | `完成` | Pick a word rare in normal prose |
+| Inject wrap-up contract | on | Rule present from the first turn |
+| Contract text | built-in | `{keyword}` is substituted |
+| Only continue turns with actions | off | Plain Q&A stops when enabled |
+| Tool-failure / rate-limit / upstream continuation text | built-in | Support `{tool}` `{result}` `{status}` `{code}` |
+| Autonomous loop | off | Continue every completed turn until the keyword appears |
 
-Retry policy (delay, consecutive cap, backoff, offline pause, classification), startup recovery, loop guards, the status bridge and browser notifications are unchanged.
+## Limits
 
-## Decision flow
+- It spends tokens: caps and loop guards bound the repeats, but long tasks still cost more
+- Detection relies on the keyword; changing it means older replies no longer match
+- Independent of `dsh-auto-continue`: both can be installed side by side
 
-```
-turn/end(completed)
-  └─ autonomous loop on?
-       ├─ no  → legacy behaviour (budget cleared only on visible output)
-       └─ yes → does the last assistant text end with the keyword?
-                ├─ yes → task complete: reset loop counters, stop
-                └─ no  → (real-work-only && no tool this turn && no active goal)
-                          ├─ yes → plain chat, stop
-                          └─ no  → send the continuation
-```
+## Data & privacy
 
-"Last assistant text" skips messages that carry a tool call (those are not a final answer) and tolerates trailing punctuation, quotes, asterisks and invisible format characters.
+Settings and run state stay in the local profile data directory. Nothing is uploaded, and no data outside the conversation is read.
 
-## Development
+## Version & author
 
-```bash
-npm install
-npm run build     # esbuild + tsc → lib/
-npm test          # includes tests/smart-completion.mjs
-npm run typecheck
-```
+- Version **1.2.0** ([changelog](CHANGELOG.md))
+- Author: 困困 (KunKun) · GitHub [@KunKun24](https://github.com/KunKun24) · Telegram [@sad1881](https://t.me/sad1881)
+- License: [MIT](LICENSE) (derived from HsiangNianian/dsh-auto-continue, original Copyright (c) 2025 HsiangNianian)
 
-Layout: `src/host/engine.ts` (engine), `src/shared/core.ts` (settings, decisions, templates), `src/client/*` (settings card, composer toggle, status bridge).
-
-## License
-
-MIT. Original work Copyright (c) 2025 HsiangNianian; modifications Copyright (c) 2026 KunKun. See [LICENSE](./LICENSE).
-
----
-
-## About AIGC
-
-> This project contains AIGC (AI-generated) content. AI shortened development time; every line of code was carefully reviewed.
+Contains AIGC-assisted code, reviewed line by line and verified on a real instance.
