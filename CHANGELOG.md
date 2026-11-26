@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 — 2026-11-27
+
+### 兼容
+
+- **兼容范围明确为 DSH 0.2.0-rc.2 → 0.2.3**：`engines.dsh` 写 `>=0.2.0-rc.2`；可选服务（goals、sessionQuery、agents 等）统一走 `ctx.get`/`ctx.inject`，缺失时对应功能静默关闭。
+
 ## 1.2.0
 
 ### 改进

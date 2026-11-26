@@ -2,15 +2,15 @@
 
 [**简体中文**](README.md) · [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-1.2.0-blue)
+![version](https://img.shields.io/badge/version-1.2.1-blue)
 ![license](https://img.shields.io/badge/license-MIT-2ea44f)
-![dsh](https://img.shields.io/badge/DSH-%E2%89%A50.2.0-6f42c1)
+![dsh](https://img.shields.io/badge/DSH-%E2%89%A50.2.0--rc.2-6f42c1)
 
 The model says it is finished while the task is half-done — keep it working until it really wraps up.
 
 ![The "auto-continue" switch above the composer](assets/demo.gif)
 
-> A DeepSeek Harness (DSH) plugin for DSH 0.2.0 or newer.
+> A DeepSeek Harness (DSH) plugin for DSH 0.2.0-rc.2 or newer (tested across 0.2.0-rc.2 → 0.2.3).
 
 ## What it does
 
@@ -36,7 +36,7 @@ Search `dsh-until-done` in DSH's plugin marketplace.
 **Option 2 — release tarball**
 
 ```bash
-dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.2.0/dsh-until-done-1.2.0.tgz
+dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.2.1/dsh-until-done-1.2.1.tgz
 ```
 
 **Option 3 — local source**
@@ -79,7 +79,7 @@ Settings and run state stay in the local profile data directory. Nothing is uplo
 
 ## Version & author
 
-- Version **1.2.0** ([changelog](CHANGELOG.md))
+- Version **1.2.1** ([changelog](CHANGELOG.md))
 - Author: 困困 (KunKun) · GitHub [@KunKun24](https://github.com/KunKun24) · Telegram [@sad1881](https://t.me/sad1881)
 - License: [MIT](LICENSE) (derived from HsiangNianian/dsh-auto-continue, original Copyright (c) 2025 HsiangNianian)
 

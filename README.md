@@ -2,15 +2,15 @@
 
 [**简体中文**](README.md) · [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-1.2.0-blue)
+![version](https://img.shields.io/badge/version-1.2.1-blue)
 ![license](https://img.shields.io/badge/license-MIT-2ea44f)
-![dsh](https://img.shields.io/badge/DSH-%E2%89%A50.2.0-6f42c1)
+![dsh](https://img.shields.io/badge/DSH-%E2%89%A50.2.0--rc.2-6f42c1)
 
 模型说“完成了”，但任务才做了一半 —— 让它自己接着干，直到真的收尾。
 
 ![输入框上方的「自动继续」开关](assets/demo.gif)
 
-> DeepSeek Harness（DSH）插件，需要 DSH 0.2.0 及以上。
+> DeepSeek Harness（DSH）插件，需要 DSH 0.2.0-rc.2 及以上（0.2.0-rc.2 → 0.2.3 全系列实测可用）。
 
 ## 它做什么
 
@@ -36,7 +36,7 @@
 **方式二：Release 包**
 
 ```bash
-dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.2.0/dsh-until-done-1.2.0.tgz
+dsh plugin --profile web add https://github.com/KunKun24/dsh-until-done/releases/download/v1.2.1/dsh-until-done-1.2.1.tgz
 ```
 
 **方式三：本地源码**
@@ -79,7 +79,7 @@ dsh plugin --profile web add link:/path/to/dsh-until-done
 
 ## 版本与作者
 
-- 当前版本 **1.2.0**（[更新日志](CHANGELOG.md)）
+- 当前版本 **1.2.1**（[更新日志](CHANGELOG.md)）
 - 作者：困困 · GitHub [@KunKun24](https://github.com/KunKun24) · Telegram [@sad1881](https://t.me/sad1881)
 - 许可证：[MIT](LICENSE)（衍生自 HsiangNianian/dsh-auto-continue，原项目 Copyright (c) 2025 HsiangNianian）
 
